@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     public_data_api_key: str | None = Field(default=None, alias="PUBLIC_DATA_API_KEY")
+    bok_ecos_api_key: str | None = Field(default=None, alias="BOK_ECOS_API_KEY")
 
     @property
     def is_database_enabled(self) -> bool:

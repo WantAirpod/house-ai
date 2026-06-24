@@ -2,9 +2,19 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 from home_decision_ai.collectors.molit_rtms import fetch_apartment_trades
-from home_decision_ai.settings import get_settings
+
+
+def read_env_value(name: str) -> str | None:
+    env_path = Path(".env")
+    if not env_path.exists():
+        return None
+    for line in env_path.read_text().splitlines():
+        if line.startswith(name + "="):
+            return line.split("=", 1)[1]
+    return None
 
 
 def main() -> None:
@@ -14,12 +24,12 @@ def main() -> None:
     parser.add_argument("--name-contains", default=None, help="단지명 부분 검색어")
     args = parser.parse_args()
 
-    settings = get_settings()
-    if not settings.public_data_api_key:
+    public_data_api_key = read_env_value("PUBLIC_DATA_API_KEY")
+    if not public_data_api_key:
         raise SystemExit("PUBLIC_DATA_API_KEY is required.")
 
     trades = fetch_apartment_trades(
-        service_key=settings.public_data_api_key,
+        service_key=public_data_api_key,
         lawd_cd=args.lawd_cd,
         deal_ym=args.deal_ym,
     )
