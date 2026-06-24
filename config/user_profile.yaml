@@ -8,6 +8,13 @@ profile:
   commute:
     destination: "네이버 본사"
     destination_area: "정자동"
+    destination_place_name: "NAVER그린팩토리"
+    destination_road_address: "경기 성남시 분당구 불정로 6"
+    destination_coordinates:
+      longitude: 127.105017634512
+      latitude: 37.3595305941092
+      source: "Kakao Local API keyword search"
+      observed_at: "2026-06-24"
     modes:
       - car
       - shinbundang_line

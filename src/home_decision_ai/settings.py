@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     bok_ecos_api_key: str | None = Field(default=None, alias="BOK_ECOS_API_KEY")
     naver_client_id: str | None = Field(default=None, alias="NAVER_CLIENT_ID")
     naver_client_secret: str | None = Field(default=None, alias="NAVER_CLIENT_SECRET")
+    kakao_rest_api_key: str | None = Field(default=None, alias="KAKAO_REST_API_KEY")
 
     @property
     def is_database_enabled(self) -> bool:
