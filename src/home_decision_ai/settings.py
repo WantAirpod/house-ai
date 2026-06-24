@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     notion_alert_database_id: str | None = Field(default=None, alias="NOTION_ALERT_DATABASE_ID")
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    openai_model: str = Field(default="gpt-4.1-mini", alias="OPENAI_MODEL")
     public_data_api_key: str | None = Field(default=None, alias="PUBLIC_DATA_API_KEY")
     bok_ecos_api_key: str | None = Field(default=None, alias="BOK_ECOS_API_KEY")
 
