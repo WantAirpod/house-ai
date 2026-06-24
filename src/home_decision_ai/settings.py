@@ -21,11 +21,16 @@ class Settings(BaseSettings):
     notion_watchlist_database_id: str | None = Field(default=None, alias="NOTION_WATCHLIST_DATABASE_ID")
     notion_top5_database_id: str | None = Field(default=None, alias="NOTION_TOP5_DATABASE_ID")
     notion_events_database_id: str | None = Field(default=None, alias="NOTION_EVENTS_DATABASE_ID")
+    notion_price_queue_database_id: str | None = Field(
+        default=None,
+        alias="NOTION_PRICE_QUEUE_DATABASE_ID",
+    )
     notion_daily_database_id: str | None = Field(default=None, alias="NOTION_DAILY_DATABASE_ID")
     notion_weekly_database_id: str | None = Field(default=None, alias="NOTION_WEEKLY_DATABASE_ID")
     notion_alert_database_id: str | None = Field(default=None, alias="NOTION_ALERT_DATABASE_ID")
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    public_data_api_key: str | None = Field(default=None, alias="PUBLIC_DATA_API_KEY")
 
     @property
     def is_database_enabled(self) -> bool:
