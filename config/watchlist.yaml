@@ -1,0 +1,48 @@
+watchlist:
+  - id: sample_suji_newer_84
+    name: "수지 신축 후보 84"
+    region_id: yongin_suji
+    status: candidate
+    target_sizes:
+      - 84
+    max_price_krw: 1050000000
+    built_year_min: 2014
+    tracking:
+      transaction_price: true
+      asking_price: true
+      inventory_count: true
+      community_reaction: true
+    notes:
+      - "TODO: 실제 단지명으로 교체"
+      - "TODO: 역 도보 시간, 단지 세대수, 커뮤니티 시설 확인"
+  - id: sample_giheung_value_59
+    name: "기흥 가성비 후보 59"
+    region_id: yongin_giheung
+    status: candidate
+    target_sizes:
+      - 59
+    max_price_krw: 900000000
+    built_year_min: 2010
+    tracking:
+      transaction_price: true
+      asking_price: true
+      inventory_count: true
+      community_reaction: false
+    notes:
+      - "TODO: 자차 출퇴근 병목 구간 확인"
+      - "TODO: 구축이면 수리비와 주차 스트레스 반영"
+
+alert_rules:
+  transaction_price_jump_percent: 5
+  transaction_price_drop_percent: -5
+  asking_price_change_percent: 3
+  inventory_drop_percent: -20
+  policy_keywords:
+    - "대출"
+    - "DSR"
+    - "LTV"
+    - "금리"
+    - "청약"
+
+# TODO: 알림 임계값은 단지별 가격대와 거래 빈도에 따라 다르게 보정한다.
+# TODO: 관심 단지 우선순위를 active, candidate, archived로 운영한다.

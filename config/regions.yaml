@@ -1,0 +1,52 @@
+regions:
+  - id: yongin_suji
+    name: "용인 수지"
+    priority: 1
+    commute_notes: "신분당선 및 자차 모두 검토"
+    target_stations:
+      - "성복"
+      - "수지구청"
+      - "동천"
+    phase1_research_focus:
+      - transaction_price
+      - asking_price
+      - inventory_change
+      - residential_satisfaction
+  - id: yongin_giheung
+    name: "용인 기흥"
+    priority: 2
+    commute_notes: "정자동 자차 접근성과 GTX/분당선 연계 가능성 확인"
+    target_stations:
+      - "기흥"
+      - "구성"
+      - "신갈"
+    phase1_research_focus:
+      - transaction_price
+      - asking_price
+      - commute_risk
+  - id: yongin_cheoin
+    name: "용인 처인"
+    priority: 3
+    commute_notes: "가격 메리트와 장기 개발 호재를 분리해서 검토"
+    target_stations:
+      - "용인중앙시장"
+      - "역북"
+    phase1_research_focus:
+      - affordability
+      - future_supply
+      - commute_risk
+  - id: seoul_pangyo_commutable
+    name: "서울 판교 출퇴근 가능 지역"
+    priority: 4
+    commute_notes: "신분당선, 강남 접근성, 예산 초과 리스크 확인"
+    target_stations:
+      - "강남"
+      - "양재"
+      - "청계산입구"
+    phase1_research_focus:
+      - budget_fit
+      - commute
+      - older_complex_tradeoff
+
+# TODO: 지역별 자차 출퇴근 시간 기준선을 수치화한다.
+# TODO: 지역별 학군/생활 인프라/공급 리스크 지표를 추가한다.

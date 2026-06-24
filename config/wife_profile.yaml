@@ -1,0 +1,29 @@
+profile:
+  owner: wife
+  purpose: owner_occupied_purchase
+  priorities:
+    - name: newness
+      label: "신축"
+      weight: 5
+    - name: infrastructure
+      label: "인프라"
+      weight: 4
+    - name: station_access
+      label: "역세권"
+      weight: 3
+    - name: brand
+      label: "브랜드"
+      weight: 2
+  preferred_environment:
+    infrastructure:
+      - grocery
+      - hospital
+      - park
+      - school
+      - cafe
+    avoid:
+      - severe_noise
+      - weak_daily_infrastructure
+
+# TODO: 아내 기준의 필수 조건과 선호 조건을 별도 필드로 분리한다.
+# TODO: 브랜드 선호를 점수화할 때 시공사, 단지 관리상태, 커뮤니티 시설을 함께 고려한다.

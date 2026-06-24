@@ -1,0 +1,35 @@
+profile:
+  owner: husband
+  purpose: owner_occupied_purchase
+  purchase_horizon_months: 12
+  max_budget_krw:
+    preferred: 1000000000
+    upper_limit: 1050000000
+  commute:
+    destination: "네이버 본사"
+    destination_area: "정자동"
+    modes:
+      - car
+      - shinbundang_line
+  preferred_sizes_pyeong:
+    - 59
+    - 84
+  age_preference:
+    preferred_max_years: 12
+    allow_older_if_location_is_strong: true
+  priorities:
+    - name: commute
+      label: "출퇴근"
+      weight: 5
+    - name: station_access
+      label: "역세권"
+      weight: 4
+    - name: newness
+      label: "신축"
+      weight: 3
+    - name: community
+      label: "커뮤니티"
+      weight: 2
+
+# TODO: 실제 의사결정에서 양보 가능한 조건과 불가능한 조건을 분리한다.
+# TODO: 자차 기준 허용 통근 시간과 신분당선 기준 허용 통근 시간을 수치화한다.
