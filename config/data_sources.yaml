@@ -1,0 +1,53 @@
+sources:
+  - id: molit_rtms
+    name: "국토교통부 실거래가 공개시스템"
+    tier: 1
+    url: "https://rt.molit.go.kr/"
+    data_types:
+      - transaction_price
+    trust_level: official
+    usage: "아파트 실거래가, 계약일, 면적, 층, 거래금액 확인"
+  - id: reb_r_one
+    name: "한국부동산원 R-ONE"
+    tier: 1
+    url: "https://www.reb.or.kr/"
+    data_types:
+      - market_index
+      - regional_trend
+    trust_level: official
+    usage: "지역 가격 동향, 통계 지표, 시장 흐름 확인"
+  - id: bok
+    name: "한국은행"
+    tier: 3
+    url: "https://www.bok.or.kr/"
+    data_types:
+      - base_rate
+      - monetary_policy
+    trust_level: official
+    usage: "기준금리, 통화정책 방향, ECOS 통계 확인"
+  - id: fsc
+    name: "금융위원회"
+    tier: 3
+    url: "https://www.fsc.go.kr/"
+    data_types:
+      - loan_policy
+      - dsr
+      - ltv
+    trust_level: official
+    usage: "DSR, LTV, 주택담보대출 규제와 정책 보도자료 확인"
+  - id: manual_broker_check
+    name: "중개사/현장 확인"
+    tier: 2
+    url: null
+    data_types:
+      - asking_price
+      - inventory_count
+      - residential_feedback
+    trust_level: manual_check_required
+    usage: "호가, 실제 매물 존재 여부, 급매 여부, 실거주 불편사항 확인"
+
+rules:
+  - "실거래가는 공식 출처와 관측일이 없으면 분석에 사용하지 않는다."
+  - "호가는 관측일, 출처, 매물 수, 중복 가능성 메모를 함께 저장한다."
+  - "커뮤니티 반응은 단독 매수/보류 근거로 쓰지 않는다."
+  - "AI 의견은 verified 또는 manually_checked 상태의 데이터만 강한 근거로 사용한다."

@@ -18,6 +18,7 @@ reports/alerts/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/manual/.gitkeep
+!data/manual/*.example.csv
 !reports/daily/.gitkeep
 !reports/weekly/.gitkeep
 !reports/alerts/.gitkeep
