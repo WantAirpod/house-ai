@@ -63,6 +63,13 @@
         <div class="pill">Watchlist: {{ watchlist|length }}</div>
       </section>
 
+      {% if dashboard_error %}
+      <section>
+        <h2>설정 로딩 오류</h2>
+        <p>{{ dashboard_error }}</p>
+      </section>
+      {% endif %}
+
       <section>
         <h2>관심 지역</h2>
         <table>
@@ -76,9 +83,9 @@
           <tbody>
             {% for region in regions %}
             <tr>
-              <td>{{ region.priority }}</td>
-              <td>{{ region.name }}</td>
-              <td>{{ region.commute_notes }}</td>
+              <td>{{ region.get("priority", "-") }}</td>
+              <td>{{ region.get("name", "-") }}</td>
+              <td>{{ region.get("commute_notes", "-") }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -99,10 +106,10 @@
           <tbody>
             {% for item in watchlist %}
             <tr>
-              <td>{{ item.status }}</td>
-              <td>{{ item.name }}</td>
-              <td>{{ item.target_sizes|join(", ") }}</td>
-              <td>{{ "{:,}".format(item.max_price_krw) if item.max_price_krw else "-" }}</td>
+              <td>{{ item.get("status", "-") }}</td>
+              <td>{{ item.get("name", "-") }}</td>
+              <td>{{ item.get("target_sizes", [])|join(", ") }}</td>
+              <td>{{ "{:,}".format(item.get("max_price_krw")) if item.get("max_price_krw") else "-" }}</td>
             </tr>
             {% endfor %}
           </tbody>
