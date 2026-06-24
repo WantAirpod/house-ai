@@ -1,1 +1,1 @@
-web: python -m home_decision_ai.api.server
+web: python server.py

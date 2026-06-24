@@ -1,6 +1,6 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "deploy": {
-    "startCommand": "python -m home_decision_ai.api.server"
+    "startCommand": "python server.py"
   }
 }
