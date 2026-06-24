@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-4.1-mini", alias="OPENAI_MODEL")
     public_data_api_key: str | None = Field(default=None, alias="PUBLIC_DATA_API_KEY")
     bok_ecos_api_key: str | None = Field(default=None, alias="BOK_ECOS_API_KEY")
+    naver_client_id: str | None = Field(default=None, alias="NAVER_CLIENT_ID")
+    naver_client_secret: str | None = Field(default=None, alias="NAVER_CLIENT_SECRET")
 
     @property
     def is_database_enabled(self) -> bool:
