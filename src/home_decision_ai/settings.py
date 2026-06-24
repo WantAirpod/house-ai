@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     notion_api_key: str | None = Field(default=None, alias="NOTION_API_KEY")
     notion_parent_page_id: str | None = Field(default=None, alias="NOTION_PARENT_PAGE_ID")
+    notion_watchlist_database_id: str | None = Field(default=None, alias="NOTION_WATCHLIST_DATABASE_ID")
     notion_daily_database_id: str | None = Field(default=None, alias="NOTION_DAILY_DATABASE_ID")
     notion_weekly_database_id: str | None = Field(default=None, alias="NOTION_WEEKLY_DATABASE_ID")
     notion_alert_database_id: str | None = Field(default=None, alias="NOTION_ALERT_DATABASE_ID")
