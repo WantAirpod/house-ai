@@ -25,6 +25,14 @@ class Settings(BaseSettings):
         default=None,
         alias="NOTION_PRICE_QUEUE_DATABASE_ID",
     )
+    notion_candidate_board_database_id: str | None = Field(
+        default=None,
+        alias="NOTION_CANDIDATE_BOARD_DATABASE_ID",
+    )
+    notion_operations_calendar_database_id: str | None = Field(
+        default=None,
+        alias="NOTION_OPERATIONS_CALENDAR_DATABASE_ID",
+    )
     notion_daily_database_id: str | None = Field(default=None, alias="NOTION_DAILY_DATABASE_ID")
     notion_weekly_database_id: str | None = Field(default=None, alias="NOTION_WEEKLY_DATABASE_ID")
     notion_alert_database_id: str | None = Field(default=None, alias="NOTION_ALERT_DATABASE_ID")
