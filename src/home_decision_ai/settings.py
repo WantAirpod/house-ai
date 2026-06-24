@@ -33,6 +33,14 @@ class Settings(BaseSettings):
         default=None,
         alias="NOTION_OPERATIONS_CALENDAR_DATABASE_ID",
     )
+    notion_reviewed_candidates_database_id: str | None = Field(
+        default=None,
+        alias="NOTION_REVIEWED_CANDIDATES_DATABASE_ID",
+    )
+    notion_excluded_candidates_database_id: str | None = Field(
+        default=None,
+        alias="NOTION_EXCLUDED_CANDIDATES_DATABASE_ID",
+    )
     notion_daily_database_id: str | None = Field(default=None, alias="NOTION_DAILY_DATABASE_ID")
     notion_weekly_database_id: str | None = Field(default=None, alias="NOTION_WEEKLY_DATABASE_ID")
     notion_alert_database_id: str | None = Field(default=None, alias="NOTION_ALERT_DATABASE_ID")
