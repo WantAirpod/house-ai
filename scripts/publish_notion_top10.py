@@ -3,16 +3,20 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
 from collections import defaultdict
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
+from statistics import median
 from typing import Any
 from urllib.error import HTTPError
+from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from home_decision_ai.collectors.molit_rtms import fetch_apartment_trades
+from home_decision_ai.collectors.molit_rtms import ApartmentTrade
 from home_decision_ai.models.financing import classify_price
 
 
@@ -43,8 +47,10 @@ REGIONS = {
             "서울 서초구": "11650",
             "서울 송파구": "11710",
             "서울 강동구": "11740",
+            "서울 동작구": "11590",
+            "서울 관악구": "11620",
         },
-        "memo": "서울은 예산 초과 가능성이 높아 59/구축 위주로 예외 탐색.",
+        "memo": "10.5억 이하 59/84 실거래만 추림. 생활권·연식·면적 타협 가능성 확인.",
     },
 }
 
@@ -146,19 +152,40 @@ def exclusion_reasons(metadata: dict[str, Any] | None) -> list[str]:
     return reasons
 
 
+def fetch_trades_with_retry(
+    *,
+    service_key: str,
+    lawd_cd: str,
+    deal_ym: str,
+    attempts: int = 3,
+) -> list[ApartmentTrade]:
+    for attempt in range(1, attempts + 1):
+        try:
+            return fetch_apartment_trades(
+                service_key=service_key,
+                lawd_cd=lawd_cd,
+                deal_ym=deal_ym,
+            )
+        except (TimeoutError, URLError, HTTPError):
+            if attempt == attempts:
+                return []
+            time.sleep(1.5 * attempt)
+    return []
+
+
 def fetch_candidates(
     *,
     service_key: str,
     months: list[str],
     metadata_path: Path,
 ) -> list[dict[str, Any]]:
-    trades_by_complex: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    trades_by_complex: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
     metadata_by_complex = load_complex_metadata(metadata_path)
 
     for region_name, region in REGIONS.items():
         for subregion, lawd_cd in region["lawd_codes"].items():
             for month in months:
-                trades = fetch_apartment_trades(
+                trades = fetch_trades_with_retry(
                     service_key=service_key,
                     lawd_cd=lawd_cd,
                     deal_ym=month,
@@ -171,10 +198,10 @@ def fetch_candidates(
                     item["region"] = region_name
                     item["subregion"] = subregion
                     item["area_bucket"] = bucket
-                    trades_by_complex[(region_name, trade.apartment_name, bucket)].append(item)
+                    trades_by_complex[(region_name, subregion, trade.apartment_name, bucket)].append(item)
 
     candidates: list[dict[str, Any]] = []
-    for (region_name, name, bucket), trades in trades_by_complex.items():
+    for (region_name, subregion, name, bucket), trades in trades_by_complex.items():
         prices = [trade["price_krw"] for trade in trades if trade["price_krw"]]
         if not prices:
             continue
@@ -187,9 +214,14 @@ def fetch_candidates(
         max_price = max(prices)
         latest_price = latest["price_krw"]
         financing_band = classify_price(latest_price)
-        metadata = metadata_by_complex.get((region_name, name))
+        metadata = metadata_by_complex.get((subregion, name)) or metadata_by_complex.get((region_name, name))
         reasons = exclusion_reasons(metadata)
         price_change_pct = round(((latest_price - min_price) / min_price) * 100, 1) if min_price else None
+        price_position_pct = (
+            round(((latest_price - min_price) / (max_price - min_price)) * 100, 1)
+            if max_price > min_price
+            else 0.0
+        )
 
         if latest_price <= BUDGET_REALISTIC_KRW:
             budget_status = "현실 플랜"
@@ -201,7 +233,7 @@ def fetch_candidates(
         candidates.append(
             {
                 "region": region_name,
-                "subregion": latest["subregion"],
+                "subregion": subregion,
                 "name": name,
                 "area_bucket": bucket,
                 "built_year": built_year,
@@ -215,6 +247,7 @@ def fetch_candidates(
                 "latest_area_m2": latest["area_m2"],
                 "latest_floor": latest["floor"],
                 "price_change_from_min_pct": price_change_pct,
+                "price_position_pct": price_position_pct,
                 "budget_status": budget_status,
                 "financing_band": financing_band.name,
                 "financing_recommendation": financing_band.recommendation,
@@ -241,6 +274,15 @@ def score_candidate(item: dict[str, Any], *, older_friendly: bool = False) -> fl
     score += 10 if item["area_bucket"] == "84" else 7
     score += min(item["trade_count"], 25) * 0.3
 
+    household_count = item["household_count"]
+    if household_count is not None:
+        if household_count >= 1000:
+            score += 4
+        elif household_count >= 500:
+            score += 2
+        elif household_count < MIN_HOUSEHOLD_COUNT:
+            score -= 8
+
     built_year = item["built_year"] or 0
     if older_friendly:
         if built_year >= 2014:
@@ -263,6 +305,49 @@ def score_candidate(item: dict[str, Any], *, older_friendly: bool = False) -> fl
 
     if item["price_change_from_min_pct"] is not None and item["price_change_from_min_pct"] >= 25:
         score -= 3
+    if item["price_position_pct"] >= 85:
+        score -= 2
+    return round(score, 2)
+
+
+def score_seoul_plan(item: dict[str, Any]) -> float:
+    latest_price = item["latest_price_krw"]
+    if item["region"] != "서울 판교 출퇴근권" or item["excluded"] or latest_price > BUDGET_MAX_KRW:
+        return -1_000
+
+    score = 0.0
+    score += 18 if latest_price <= BUDGET_REALISTIC_KRW else 8
+    score += 10 if item["area_bucket"] == "84" else 8
+    score += min(item["trade_count"], 20) * 0.4
+
+    built_year = item["built_year"] or 0
+    if built_year >= 2014:
+        score += 10
+    elif built_year >= 2000:
+        score += 7
+    elif built_year >= 1990:
+        score += 4
+    else:
+        score += 1
+
+    if item["subregion"] in {"서울 강남구", "서울 서초구"}:
+        score += 7
+    elif item["subregion"] in {"서울 송파구", "서울 동작구"}:
+        score += 5
+    elif item["subregion"] in {"서울 관악구", "서울 강동구"}:
+        score += 3
+
+    household_count = item["household_count"]
+    if household_count is not None:
+        if household_count >= 1000:
+            score += 3
+        elif household_count >= 500:
+            score += 2
+        elif household_count < MIN_HOUSEHOLD_COUNT:
+            score -= 8
+
+    if item["price_position_pct"] >= 85:
+        score -= 2
     return round(score, 2)
 
 
@@ -271,6 +356,25 @@ def ranked(candidates: list[dict[str, Any]], *, older_friendly: bool = False) ->
     for item in candidates:
         copy = dict(item)
         copy["score"] = score_candidate(copy, older_friendly=older_friendly)
+        if copy["score"] < 0:
+            continue
+        scored.append(copy)
+    return sorted(
+        scored,
+        key=lambda item: (
+            item["score"],
+            item["trade_count"],
+            -item["latest_price_krw"],
+        ),
+        reverse=True,
+    )
+
+
+def ranked_seoul_plan(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    scored: list[dict[str, Any]] = []
+    for item in candidates:
+        copy = dict(item)
+        copy["score"] = score_seoul_plan(copy)
         if copy["score"] < 0:
             continue
         scored.append(copy)
@@ -304,19 +408,61 @@ def deal_date(item: dict[str, Any]) -> str:
     return f"{ym[:4]}.{ym[4:]}.{int(item['latest_deal_day']):02d}"
 
 
+def display_region(item: dict[str, Any]) -> str:
+    if item["region"] == "서울 판교 출퇴근권":
+        return item["subregion"]
+    return item["region"]
+
+
 def key_reason(item: dict[str, Any]) -> str:
     reasons: list[str] = []
-    if item["latest_price_krw"] <= BUDGET_REALISTIC_KRW:
-        reasons.append("현실 플랜")
-    else:
-        reasons.append("확장 플랜")
-    reasons.append(f"{item['area_bucket']}형")
+    reasons.append(item["budget_status"])
     if item["built_year"]:
         reasons.append(f"{item['built_year']}년식")
-    reasons.append(f"거래 {item['trade_count']}건")
-    if item["region"] == "서울 판교 출퇴근권":
-        reasons.append("서울 예외 검토")
+    reasons.append(liquidity_label(item))
+    reasons.append(price_position_label(item))
+    reasons.append(scale_label(item))
     return " · ".join(reasons)
+
+
+def household_label(item: dict[str, Any]) -> str:
+    household_count = item.get("household_count")
+    if household_count is None:
+        return "확인 필요"
+    return f"{household_count:,}세대"
+
+
+def liquidity_label(item: dict[str, Any]) -> str:
+    trade_count = item["trade_count"]
+    if trade_count >= 30:
+        return "거래 활발"
+    if trade_count >= 10:
+        return "거래 보통"
+    return "거래 적음"
+
+
+def price_position_label(item: dict[str, Any]) -> str:
+    position = item.get("price_position_pct")
+    if position is None:
+        return "가격위치 확인 필요"
+    if position >= 85:
+        return "최근 고점권"
+    if position <= 35:
+        return "저점권"
+    return "중간권"
+
+
+def scale_label(item: dict[str, Any]) -> str:
+    household_count = item.get("household_count")
+    if household_count is None:
+        return "세대수 미확인"
+    if household_count >= 1000:
+        return "대단지"
+    if household_count >= 500:
+        return "중대형 단지"
+    if household_count >= MIN_HOUSEHOLD_COUNT:
+        return "중소형 단지"
+    return "소규모"
 
 
 def text(content: str, *, bold: bool = False) -> dict[str, Any]:
@@ -382,13 +528,15 @@ def top_rows(items: list[dict[str, Any]]) -> list[list[str]]:
         rows.append(
             [
                 str(idx),
-                item["region"],
+                display_region(item),
                 item["name"],
                 item["area_bucket"],
                 str(item["built_year"] or "-"),
+                household_label(item),
                 won_eok(item["latest_price_krw"]),
                 deal_date(item),
                 str(item["trade_count"]),
+                f"{item['price_position_pct']}%",
                 key_reason(item),
             ]
         )
@@ -404,34 +552,69 @@ def regional_rows(items: list[dict[str, Any]]) -> list[list[str]]:
                 item["name"],
                 item["area_bucket"],
                 str(item["built_year"] or "-"),
+                household_label(item),
                 won_eok(item["latest_price_krw"]),
                 deal_date(item),
                 item["budget_status"],
                 str(item["trade_count"]),
+                price_position_label(item),
             ]
         )
     return rows
+
+
+def count_price_high(items: list[dict[str, Any]]) -> int:
+    return sum(1 for item in items if item.get("price_position_pct", 0) >= 85)
+
+
+def count_unknown_households(items: list[dict[str, Any]]) -> int:
+    return sum(1 for item in items if item.get("household_count") is None)
+
+
+def insight_rows(final_top10: list[dict[str, Any]], seoul_top10: list[dict[str, Any]]) -> list[list[str]]:
+    final_suji_count = sum(1 for item in final_top10 if item["region"] == "용인 수지")
+    final_84_count = sum(1 for item in final_top10 if item["area_bucket"] == "84")
+    seoul_prices = [item["latest_price_krw"] for item in seoul_top10 if item["latest_price_krw"]]
+    seoul_median = int(median(seoul_prices)) if seoul_prices else None
+    unknown_scale_count = count_unknown_households(final_top10 + seoul_top10)
+
+    return [
+        ["최종 TOP10 수지 비중", f"{final_suji_count}/10", "출퇴근·선호지역 가중치 반영"],
+        ["최종 TOP10 84형 비중", f"{final_84_count}/10", "실거주 면적 안정성 확인"],
+        ["최근 고점권 후보", f"{count_price_high(final_top10)}/10", "호가 추격 주의"],
+        ["서울 플랜 중위 실거래", won_eok(seoul_median), "서울 거주 시 면적·연식 타협 필요"],
+        ["세대수 미확인", f"{unknown_scale_count}/{len(final_top10) + len(seoul_top10)}", "단지 규모 데이터 보강 필요"],
+    ]
 
 
 def build_blocks(
     *,
     months: list[str],
     final_top10: list[dict[str, Any]],
+    seoul_top10: list[dict[str, Any]],
     region_tops: dict[str, list[dict[str, Any]]],
     older_top10: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     start_month, end_month = months[0], months[-1]
     blocks: list[dict[str, Any]] = [
         callout(
-            "첫 화면은 추천과 인사이트만 남겼습니다. 원본 조건/자금계획/API 정보는 입력 정보 아카이브에 보관합니다. "
             f"랭킹 기준: 국토부 실거래 {start_month[:4]}.{start_month[4:]}~{end_month[:4]}.{end_month[4:]}, "
-            "59/84형, 10.5억 이하, 300세대 미만/오피스텔형은 메타데이터가 있을 때 제외.",
+            "59/84형, 10.5억 이하, 세대수·주거유형 메타데이터 확인 시 소규모/비아파트성 후보 제외.",
         ),
+        heading("핵심 인사이트", 2),
+        table(["항목", "값", "해석"], insight_rows(final_top10, seoul_top10)),
+        divider(),
         heading("최종 TOP10", 2),
-        paragraph("부부 조건을 종합한 1차 추천입니다. 호가와 매물 수가 붙기 전까지는 실거래 기반 후보군으로 봅니다."),
         table(
-            ["순위", "지역", "단지", "평형", "연식", "최근 실거래", "거래일", "거래수", "판단 근거"],
+            ["순위", "지역", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "거래수", "가격위치", "판단 지표"],
             top_rows(final_top10),
+        ),
+        divider(),
+        heading("서울 거주 플랜 TOP10", 2),
+        paragraph("서울 거주를 우선할 때의 별도 후보군입니다. 같은 예산에서는 면적·연식·생활권 타협 가능성이 큽니다."),
+        table(
+            ["순위", "지역", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "거래수", "가격위치", "판단 지표"],
+            top_rows(seoul_top10),
         ),
         divider(),
         heading("지역별 TOP10", 2),
@@ -443,31 +626,26 @@ def build_blocks(
         if items:
             blocks.append(
                 table(
-                    ["순위", "단지", "평형", "연식", "최근 실거래", "거래일", "예산", "거래수"],
+                    ["순위", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "예산", "거래수", "가격위치"],
                     regional_rows(items),
                 )
             )
         else:
-            blocks.append(paragraph("최근 13개월 실거래 기준으로 10.5억 이하 59/84 후보가 부족합니다."))
+            blocks.append(paragraph("10.5억 이하 59/84 실거래 후보 부족."))
 
     blocks.extend(
         [
             divider(),
             heading("구축 포함 TOP10", 2),
-            paragraph("신축 가점을 낮추고 가격/입지/거래량을 더 본 확장 후보입니다. 구축은 수리비, 주차, 관리상태 확인이 필수입니다."),
+            paragraph("연식 가점을 낮추고 가격·거래량·입지 우선순위를 더 반영한 후보군입니다."),
             table(
-                ["순위", "지역", "단지", "평형", "연식", "최근 실거래", "거래일", "거래수", "판단 근거"],
+                ["순위", "지역", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "거래수", "가격위치", "판단 지표"],
                 top_rows(older_top10),
             ),
             divider(),
-            heading("이번 주 확인할 것", 2),
-            paragraph("1. 최종 TOP10의 현재 최저호가와 매물 수를 같은 날짜 기준으로 입력"),
-            paragraph("2. 단지별 세대수와 주거유형을 메타데이터로 보강해서 300세대 미만/오피스텔형 제외 규칙 확정"),
-            paragraph("3. 실거래가보다 호가가 5% 이상 높은 단지는 보류로 이동"),
-            paragraph("4. 구축 후보는 수리비, 주차, 동간거리, 엘리베이터/배관 이슈를 별도 체크"),
-            heading("바로가기", 2),
-            paragraph("입력 정보 아카이브는 이 페이지 상단 child page에 보관되어 있습니다."),
-            paragraph("출처: 국토교통부 실거래가 공개시스템 API. 호가/매물 수는 아직 자동 반영 전입니다."),
+            heading("보강 필요 데이터", 2),
+            paragraph("최저호가, 매물 수, 세대수, 주거유형, 역 도보시간, 주차/수리 리스크, 생활 인프라."),
+            paragraph("출처: 국토교통부 실거래가 공개시스템 API. 호가·매물 수·세대수는 별도 데이터 보강 대상."),
         ]
     )
     return blocks
@@ -524,6 +702,7 @@ def write_outputs(
     *,
     candidates: list[dict[str, Any]],
     final_top10: list[dict[str, Any]],
+    seoul_top10: list[dict[str, Any]],
     region_tops: dict[str, list[dict[str, Any]]],
     older_top10: list[dict[str, Any]],
     output_path: Path,
@@ -534,6 +713,7 @@ def write_outputs(
         "source": "MOLIT RTMS apartment trade API",
         "candidate_count": len(candidates),
         "final_top10": final_top10,
+        "seoul_living_top10": seoul_top10,
         "regional_top10": region_tops,
         "older_included_top10": older_top10,
     }
@@ -556,12 +736,14 @@ def main() -> None:
     months = args.months or default_months(date.today())
     candidates = fetch_candidates(service_key=service_key, months=months, metadata_path=args.metadata)
     final_top10 = ranked(candidates)[:10]
+    seoul_top10 = ranked_seoul_plan(candidates)[:10]
     region_tops = regional_top10(candidates)
     older_top10 = ranked(candidates, older_friendly=True)[:10]
 
     write_outputs(
         candidates=candidates,
         final_top10=final_top10,
+        seoul_top10=seoul_top10,
         region_tops=region_tops,
         older_top10=older_top10,
         output_path=args.output,
@@ -579,12 +761,19 @@ def main() -> None:
             build_blocks(
                 months=months,
                 final_top10=final_top10,
+                seoul_top10=seoul_top10,
                 region_tops=region_tops,
                 older_top10=older_top10,
             ),
         )
 
-    print(json.dumps({"final_top10": final_top10, "older_top10": older_top10}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"final_top10": final_top10, "seoul_living_top10": seoul_top10, "older_top10": older_top10},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
