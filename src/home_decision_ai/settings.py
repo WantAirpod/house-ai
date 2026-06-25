@@ -41,6 +41,10 @@ class Settings(BaseSettings):
         default=None,
         alias="NOTION_EXCLUDED_CANDIDATES_DATABASE_ID",
     )
+    notion_exclusion_rules_database_id: str | None = Field(
+        default=None,
+        alias="NOTION_EXCLUSION_RULES_DATABASE_ID",
+    )
     notion_daily_database_id: str | None = Field(default=None, alias="NOTION_DAILY_DATABASE_ID")
     notion_weekly_database_id: str | None = Field(default=None, alias="NOTION_WEEKLY_DATABASE_ID")
     notion_alert_database_id: str | None = Field(default=None, alias="NOTION_ALERT_DATABASE_ID")

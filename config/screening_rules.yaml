@@ -1,0 +1,17 @@
+hard_exclusions:
+  min_household_count: 300
+  excluded_property_types:
+    - officetel
+    - officetel_apartment
+    - urban_living_housing
+    - non_apartment
+
+soft_warnings:
+  preferred_max_age_years: 12
+  allow_older_if_location_is_strong: true
+  require_parking_review_if_built_before: 2010
+
+notes:
+  - "국토부 실거래 API에는 세대수와 주거 유형 세부값이 없으므로 complex_metadata CSV로 보강한다."
+  - "300세대 이하는 기본 제외하되, 역세권/입지가 매우 강하면 수동 override 후 별도 검토한다."
+  - "오피스텔, 도시형생활주택, 아파텔 성격 후보는 실거주 아파트 매수 기준에서 제외한다."
