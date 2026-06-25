@@ -8,6 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from home_decision_ai.collectors.molit_rtms import fetch_apartment_trades
+from home_decision_ai.models.financing import classify_price
 
 
 DEFAULT_REGIONS = {
@@ -144,6 +145,7 @@ def review_candidates(
             budget_status = "경계"
         else:
             budget_status = "초과"
+        financing_band = classify_price(latest["price_krw"])
         metadata = metadata_by_complex.get((region, name))
         reasons = exclusion_reasons(
             metadata,
@@ -167,6 +169,8 @@ def review_candidates(
                 "latest_area_m2": latest["area_m2"],
                 "latest_floor": latest["floor"],
                 "budget_status": budget_status,
+                "financing_band": financing_band.name,
+                "financing_recommendation": financing_band.recommendation,
                 "household_count": metadata.get("household_count") if metadata else None,
                 "property_type": metadata.get("property_type") if metadata else "unknown",
                 "excluded": bool(reasons),

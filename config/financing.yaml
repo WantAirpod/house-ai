@@ -1,0 +1,94 @@
+currency: KRW
+
+plans:
+  - id: realistic
+    name: "현실적인 플랜"
+    total_budget_krw: 920000000
+    monthly_payment_krw: 4353324
+    description: "현금 2.2억, 주담대 6억, 신용대출 0.5억, 양가 차용 0.5억 기준"
+    components:
+      - type: cash
+        name: "현금"
+        amount_krw: 220000000
+        interest_rate_percent: 0
+        monthly_payment_krw: 0
+      - type: mortgage
+        name: "주담대"
+        amount_krw: 600000000
+        interest_rate_percent: 4.5
+        monthly_payment_krw: 3040112
+      - type: credit_loan
+        name: "신용대출"
+        amount_krw: 50000000
+        interest_rate_percent: 4.4
+        monthly_payment_krw: 929879
+        memo: "최대 1.9억까지 가능하다고 들었으나 보수적으로 0.5억 반영"
+      - type: family_loan
+        name: "양가 차용"
+        amount_krw: 50000000
+        interest_rate_percent: 4.6
+        monthly_principal_krw: 0
+        monthly_interest_krw: 383333
+        monthly_payment_krw: 383333
+
+  - id: expanded_living_stability
+    name: "생안자 활용 플랜"
+    total_budget_krw: 1050000000
+    monthly_payment_krw: 6405282
+    description: "생활안정자금대출/부모님 찬스까지 활용하는 확장 플랜"
+    components:
+      - type: cash
+        name: "현금"
+        amount_krw: 220000000
+        interest_rate_percent: 0
+        monthly_payment_krw: 0
+      - type: mortgage
+        name: "주담대"
+        amount_krw: 600000000
+        interest_rate_percent: 5.0
+        monthly_principal_krw: 820000
+        monthly_interest_krw: 2230000
+        monthly_payment_krw: 3220930
+      - type: credit_loan
+        name: "신용대출"
+        amount_krw: 130000000
+        interest_rate_percent: 4.4
+        monthly_principal_krw: 750000
+        monthly_interest_krw: 180000
+        monthly_payment_krw: 2417686
+        memo: "최대 1.9억까지 가능하다고 들었으나 1.3억 반영"
+      - type: family_loan
+        name: "차용"
+        amount_krw: 50000000
+        interest_rate_percent: 4.6
+        monthly_principal_krw: 0
+        monthly_interest_krw: 383333
+        monthly_payment_krw: 383333
+      - type: family_loan
+        name: "차용2"
+        amount_krw: 50000000
+        interest_rate_percent: 4.6
+        monthly_principal_krw: 0
+        monthly_interest_krw: 383333
+        monthly_payment_krw: 383333
+
+decision_bands:
+  - id: comfortable
+    name: "현실 플랜 적합"
+    max_price_krw: 920000000
+    recommendation: "우선 검토"
+  - id: stretch
+    name: "확장 플랜 필요"
+    min_price_krw: 920000001
+    max_price_krw: 1050000000
+    recommendation: "월 부담과 호가 협상 여지 확인"
+  - id: over_budget
+    name: "예산 초과"
+    min_price_krw: 1050000001
+    recommendation: "제외 또는 급매만 관찰"
+
+rules:
+  - "9.2억 이하는 현실적인 플랜으로 우선 검토한다."
+  - "9.2억 초과 10.5억 이하는 생안자/부모님 찬스까지 쓰는 확장 플랜으로만 가능하다."
+  - "10.5억 초과는 원칙적으로 제외한다."
+  - "월 납입 640만원대 플랜은 장기 지속 가능성을 별도 검토한다."
