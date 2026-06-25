@@ -49,6 +49,14 @@ class Settings(BaseSettings):
         default=None,
         alias="NOTION_FINANCING_DATABASE_ID",
     )
+    notion_input_archive_page_id: str | None = Field(
+        default=None,
+        alias="NOTION_INPUT_ARCHIVE_PAGE_ID",
+    )
+    notion_recommendations_database_id: str | None = Field(
+        default=None,
+        alias="NOTION_RECOMMENDATIONS_DATABASE_ID",
+    )
     notion_daily_database_id: str | None = Field(default=None, alias="NOTION_DAILY_DATABASE_ID")
     notion_weekly_database_id: str | None = Field(default=None, alias="NOTION_WEEKLY_DATABASE_ID")
     notion_alert_database_id: str | None = Field(default=None, alias="NOTION_ALERT_DATABASE_ID")
