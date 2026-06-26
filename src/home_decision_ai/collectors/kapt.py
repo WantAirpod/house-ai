@@ -1,14 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import urlopen
 from xml.etree import ElementTree
 
 
-KAPT_LIST_URL = "http://apis.data.go.kr/1611000/AptListService/getLegaldongAptList"
-KAPT_BASIC_INFO_URL = "http://apis.data.go.kr/1611000/AptBasisInfoService/getAphusBassInfo"
-KAPT_DETAIL_INFO_URL = "http://apis.data.go.kr/1611000/AptBasisInfoService/getAphusDtlInfo"
+KAPT_LIST_URLS = (
+    "http://apis.data.go.kr/1613000/AptListService1/getLegaldongAptList",
+    "http://apis.data.go.kr/1611000/AptListService/getLegaldongAptList",
+)
+KAPT_BASIC_INFO_URLS = (
+    "http://apis.data.go.kr/1613000/AptBasisInfoService1/getAphusBassInfo",
+    "http://apis.data.go.kr/1611000/AptBasisInfoService/getAphusBassInfo",
+)
+KAPT_DETAIL_INFO_URLS = (
+    "http://apis.data.go.kr/1613000/AptBasisInfoService1/getAphusDtlInfo",
+    "http://apis.data.go.kr/1611000/AptBasisInfoService/getAphusDtlInfo",
+)
 
 
 @dataclass(frozen=True)
@@ -93,6 +103,19 @@ def first_item(xml_text: str) -> ElementTree.Element | None:
     return root.find(".//item")
 
 
+def fetch_xml_with_fallback(urls: tuple[str, ...], params: dict[str, object]) -> str:
+    query = urlencode(params)
+    errors: list[str] = []
+    for url in urls:
+        try:
+            with urlopen(f"{url}?{query}", timeout=30) as response:
+                return response.read().decode("utf-8")
+        except HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            errors.append(f"{url}: HTTP {exc.code} {body[:200]}")
+    raise RuntimeError("K-apt API request failed. " + " | ".join(errors))
+
+
 def parse_complex_list_xml(xml_text: str) -> list[KaptComplex]:
     root = ElementTree.fromstring(xml_text)
     complexes: list[KaptComplex] = []
@@ -173,21 +196,24 @@ def fetch_complexes_by_legal_dong(
     bjd_code: str,
     rows: int = 100,
 ) -> list[KaptComplex]:
-    query = urlencode({"serviceKey": service_key, "bjdCode": bjd_code, "numOfRows": rows})
-    with urlopen(f"{KAPT_LIST_URL}?{query}", timeout=30) as response:
-        xml_text = response.read().decode("utf-8")
+    xml_text = fetch_xml_with_fallback(
+        KAPT_LIST_URLS,
+        {"serviceKey": service_key, "bjdCode": bjd_code, "numOfRows": rows},
+    )
     return parse_complex_list_xml(xml_text)
 
 
 def fetch_basic_info(*, service_key: str, kapt_code: str) -> KaptBasicInfo | None:
-    query = urlencode({"serviceKey": service_key, "kaptCode": kapt_code})
-    with urlopen(f"{KAPT_BASIC_INFO_URL}?{query}", timeout=30) as response:
-        xml_text = response.read().decode("utf-8")
+    xml_text = fetch_xml_with_fallback(
+        KAPT_BASIC_INFO_URLS,
+        {"serviceKey": service_key, "kaptCode": kapt_code},
+    )
     return parse_basic_info_xml(xml_text)
 
 
 def fetch_detail_info(*, service_key: str, kapt_code: str) -> KaptDetailInfo | None:
-    query = urlencode({"serviceKey": service_key, "kaptCode": kapt_code})
-    with urlopen(f"{KAPT_DETAIL_INFO_URL}?{query}", timeout=30) as response:
-        xml_text = response.read().decode("utf-8")
+    xml_text = fetch_xml_with_fallback(
+        KAPT_DETAIL_INFO_URLS,
+        {"serviceKey": service_key, "kaptCode": kapt_code},
+    )
     return parse_detail_info_xml(xml_text)
