@@ -1,17 +1,26 @@
 hard_exclusions:
-  min_household_count: 300
+  max_excluded_household_count: 200
+  min_household_count_for_auto_include: 500
+  require_household_count_for_final_top10: true
   excluded_property_types:
     - officetel
     - officetel_apartment
     - urban_living_housing
     - non_apartment
+  allowed_property_types:
+    - apartment
+    - mixed_use_apartment
 
 soft_warnings:
+  review_household_count_below: 500
   preferred_max_age_years: 12
   allow_older_if_location_is_strong: true
   require_parking_review_if_built_before: 2010
 
 notes:
   - "국토부 실거래 API에는 세대수와 주거 유형 세부값이 없으므로 complex_metadata CSV로 보강한다."
-  - "300세대 이하는 기본 제외하되, 역세권/입지가 매우 강하면 수동 override 후 별도 검토한다."
+  - "200세대 이하 나홀로 아파트 또는 소규모 단지는 원칙적으로 제외한다."
+  - "세대수 미확인 단지는 최종 TOP10 확정 후보가 아니라 검수대기 후보로 표시한다."
+  - "201~499세대 아파트는 역세권, 브랜드, 주차, 관리상태, 커뮤니티 수준을 추가 검토한다."
+  - "500세대 이상 주상복합은 아파트성 단지로 보고 후보에 포함할 수 있다."
   - "오피스텔, 도시형생활주택, 아파텔 성격 후보는 실거주 아파트 매수 기준에서 제외한다."

@@ -23,7 +23,8 @@ from home_decision_ai.models.financing import classify_price
 
 BUDGET_REALISTIC_KRW = 920_000_000
 BUDGET_MAX_KRW = 1_050_000_000
-MIN_HOUSEHOLD_COUNT = 300
+MAX_EXCLUDED_HOUSEHOLD_COUNT = 200
+PREFERRED_MIN_HOUSEHOLD_COUNT = 500
 WALKING_DISTANCE_PER_MINUTE_M = 60
 STATION_SEARCH_RADIUS_M = 5000
 STATION_CACHE_PATH = Path("data/processed/station_access_cache.json")
@@ -188,8 +189,8 @@ def exclusion_reasons(metadata: dict[str, Any] | None) -> list[str]:
 
     reasons: list[str] = []
     household_count = metadata.get("household_count")
-    if household_count is not None and household_count < MIN_HOUSEHOLD_COUNT:
-        reasons.append("300세대 미만")
+    if household_count is not None and household_count <= MAX_EXCLUDED_HOUSEHOLD_COUNT:
+        reasons.append("200세대 이하")
 
     property_type = metadata.get("property_type")
     if property_type in EXCLUDED_PROPERTY_TYPES:
@@ -445,8 +446,12 @@ def score_candidate(item: dict[str, Any], *, older_friendly: bool = False) -> fl
             score += 4
         elif household_count >= 500:
             score += 2
-        elif household_count < MIN_HOUSEHOLD_COUNT:
-            score -= 8
+        elif household_count <= MAX_EXCLUDED_HOUSEHOLD_COUNT:
+            score -= 20
+        elif household_count < PREFERRED_MIN_HOUSEHOLD_COUNT:
+            score -= 2
+    else:
+        score -= 6
 
     built_year = item["built_year"] or 0
     if older_friendly:
@@ -529,8 +534,12 @@ def score_seoul_plan(item: dict[str, Any]) -> float:
             score += 3
         elif household_count >= 500:
             score += 2
-        elif household_count < MIN_HOUSEHOLD_COUNT:
-            score -= 8
+        elif household_count <= MAX_EXCLUDED_HOUSEHOLD_COUNT:
+            score -= 20
+        elif household_count < PREFERRED_MIN_HOUSEHOLD_COUNT:
+            score -= 2
+    else:
+        score -= 6
 
     if item["price_position_pct"] >= 85:
         score -= 2
@@ -688,14 +697,16 @@ def price_position_label(item: dict[str, Any]) -> str:
 def scale_label(item: dict[str, Any]) -> str:
     household_count = item.get("household_count")
     if household_count is None:
-        return "세대수 미확인"
+        return "세대수 검수 미완료"
     if household_count >= 1000:
         return "대단지"
     if household_count >= 500:
         return "중대형 단지"
-    if household_count >= MIN_HOUSEHOLD_COUNT:
-        return "중소형 단지"
-    return "소규모"
+    if household_count >= PREFERRED_MIN_HOUSEHOLD_COUNT:
+        return "중형 단지"
+    if household_count > MAX_EXCLUDED_HOUSEHOLD_COUNT:
+        return "소형 검토"
+    return "소규모 제외"
 
 
 def asking_price_label(item: dict[str, Any]) -> str:

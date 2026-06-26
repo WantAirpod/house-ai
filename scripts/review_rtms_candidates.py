@@ -24,6 +24,8 @@ EXCLUDED_PROPERTY_TYPES = {
     "non_apartment",
 }
 
+MAX_EXCLUDED_HOUSEHOLD_COUNT = 200
+
 
 def read_env_value(name: str) -> str | None:
     env_path = Path(".env")
@@ -80,7 +82,7 @@ def load_complex_metadata(path: Path | None) -> dict[tuple[str, str], dict]:
 def exclusion_reasons(
     metadata: dict | None,
     *,
-    min_household_count: int,
+    max_excluded_household_count: int,
     excluded_property_types: set[str],
 ) -> list[str]:
     if not metadata or metadata.get("exclude_override"):
@@ -88,8 +90,8 @@ def exclusion_reasons(
 
     reasons: list[str] = []
     household_count = metadata.get("household_count")
-    if household_count is not None and household_count < min_household_count:
-        reasons.append(f"{min_household_count}세대 미만")
+    if household_count is not None and household_count <= max_excluded_household_count:
+        reasons.append(f"{max_excluded_household_count}세대 이하")
 
     property_type = metadata.get("property_type")
     if property_type in excluded_property_types:
@@ -104,7 +106,7 @@ def review_candidates(
     months: list[str],
     budget_upper_krw: int,
     metadata_path: Path | None = None,
-    min_household_count: int = 300,
+    max_excluded_household_count: int = MAX_EXCLUDED_HOUSEHOLD_COUNT,
     excluded_property_types: set[str] | None = None,
     include_excluded: bool = False,
 ) -> list[dict]:
@@ -149,7 +151,7 @@ def review_candidates(
         metadata = metadata_by_complex.get((region, name))
         reasons = exclusion_reasons(
             metadata,
-            min_household_count=min_household_count,
+            max_excluded_household_count=max_excluded_household_count,
             excluded_property_types=excluded_types,
         )
         if reasons and not include_excluded:
@@ -204,7 +206,7 @@ def main() -> None:
         default=Path("data/manual/complex_metadata.csv"),
         help="CSV with region, complex_name, household_count, property_type, exclude_override.",
     )
-    parser.add_argument("--min-household-count", type=int, default=300)
+    parser.add_argument("--max-excluded-household-count", type=int, default=MAX_EXCLUDED_HOUSEHOLD_COUNT)
     parser.add_argument("--include-excluded", action="store_true")
     args = parser.parse_args()
 
@@ -217,7 +219,7 @@ def main() -> None:
         months=args.months,
         budget_upper_krw=args.budget_upper_krw,
         metadata_path=args.metadata,
-        min_household_count=args.min_household_count,
+        max_excluded_household_count=args.max_excluded_household_count,
         include_excluded=args.include_excluded,
     )
     print(json.dumps(summaries[: args.limit], ensure_ascii=False, indent=2))

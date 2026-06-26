@@ -45,9 +45,19 @@ sources:
       - residential_feedback
     trust_level: manual_check_required
     usage: "호가, 실제 매물 존재 여부, 급매 여부, 실거주 불편사항 확인"
+  - id: naverpay_realestate
+    name: "네이버페이 부동산"
+    tier: 1
+    url: "https://new.land.naver.com/"
+    data_types:
+      - asking_price
+      - inventory_count
+      - listing_url
+    trust_level: manual_check_required
+    usage: "현재 최저호가, 매물 수, 매물 URL, 중복 매물 가능성 확인"
 
 rules:
   - "실거래가는 공식 출처와 관측일이 없으면 분석에 사용하지 않는다."
-  - "호가는 관측일, 출처, 매물 수, 중복 가능성 메모를 함께 저장한다."
+  - "호가는 네이버페이 부동산을 우선 확인하고 관측일, 출처 URL, 매물 수, 중복 가능성 메모를 함께 저장한다."
   - "커뮤니티 반응은 단독 매수/보류 근거로 쓰지 않는다."
   - "AI 의견은 verified 또는 manually_checked 상태의 데이터만 강한 근거로 사용한다."

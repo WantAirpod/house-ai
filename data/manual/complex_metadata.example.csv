@@ -1,4 +1,5 @@
 region,complex_name,household_count,property_type,exclude_override,source_url,memo
 용인 수지,성복역롯데캐슬골드타운,2356,apartment,false,,세대수와 유형 확인 후 실제 출처 URL 입력
-용인 수지,예시오피스텔아파트,250,officetel_apartment,false,,300세대 이하 및 오피스텔형으로 제외
+용인 수지,예시오피스텔아파트,180,officetel_apartment,false,,200세대 이하 및 오피스텔형으로 제외
+서울 강남구,예시대형주상복합,550,mixed_use_apartment,false,,500세대 이상 주상복합은 후보 포함 가능
 용인 기흥,기흥역센트럴푸르지오,1316,apartment,false,,세대수와 유형 확인 후 실제 출처 URL 입력

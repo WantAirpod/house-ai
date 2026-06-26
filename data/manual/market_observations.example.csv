@@ -1,4 +1,4 @@
 observed_at,complex_name,region,area_m2,transaction_price_krw,asking_price_krw,inventory_count,source_id,source_url,verification_status,memo
-2026-06-24,성복역 롯데캐슬 골드타운,용인 수지,84,,,,molit_rtms,https://rt.molit.go.kr/,needs_verification,실거래가 확인 후 입력
-2026-06-24,e편한세상 수지,용인 수지,84,,,,molit_rtms,https://rt.molit.go.kr/,needs_verification,실거래가 확인 후 입력
-2026-06-24,동천자이,용인 수지,84,,,,molit_rtms,https://rt.molit.go.kr/,needs_verification,실거래가 확인 후 입력
+2026-06-24,성복역 롯데캐슬 골드타운,용인 수지,84,,,,naverpay_realestate,https://new.land.naver.com/,needs_verification,네이버페이 부동산에서 최저호가와 매물 수 확인 후 입력
+2026-06-24,e편한세상 수지,용인 수지,84,,,,naverpay_realestate,https://new.land.naver.com/,needs_verification,네이버페이 부동산에서 최저호가와 매물 수 확인 후 입력
+2026-06-24,동천자이,용인 수지,84,,,,naverpay_realestate,https://new.land.naver.com/,needs_verification,네이버페이 부동산에서 최저호가와 매물 수 확인 후 입력
