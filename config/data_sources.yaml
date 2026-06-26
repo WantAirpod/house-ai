@@ -16,6 +16,29 @@ sources:
       - regional_trend
     trust_level: official
     usage: "지역 가격 동향, 통계 지표, 시장 흐름 확인"
+  - id: kapt_basic
+    name: "공동주택 기본 정보제공 서비스"
+    tier: 1
+    url: "https://www.data.go.kr/"
+    data_types:
+      - household_count
+      - complex_type
+      - approval_date
+      - builder
+      - area_mix
+    trust_level: official
+    usage: "단지코드 기준 세대수, 동수, 단지분류, 사용승인일, 시공사, 전용면적별 세대현황 확인"
+  - id: kapt_detail
+    name: "공동주택 상세 정보제공 서비스"
+    tier: 1
+    url: "https://www.data.go.kr/"
+    data_types:
+      - subway_access
+      - parking_count
+      - facilities
+      - cctv_count
+    trust_level: official
+    usage: "단지코드 기준 지하철호선, 지하철역명, 지하철역 거리, 주차대수, 부대복리시설 확인"
   - id: bok
     name: "한국은행"
     tier: 3
