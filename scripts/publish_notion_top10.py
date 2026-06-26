@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import time
 from collections import defaultdict
 from dataclasses import asdict
@@ -15,14 +16,17 @@ from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from home_decision_ai.collectors.molit_rtms import fetch_apartment_trades
 from home_decision_ai.collectors.molit_rtms import ApartmentTrade
+from home_decision_ai.collectors.molit_rtms import fetch_apartment_trades
 from home_decision_ai.models.financing import classify_price
 
 
 BUDGET_REALISTIC_KRW = 920_000_000
 BUDGET_MAX_KRW = 1_050_000_000
 MIN_HOUSEHOLD_COUNT = 300
+WALKING_DISTANCE_PER_MINUTE_M = 60
+STATION_SEARCH_RADIUS_M = 5000
+STATION_CACHE_PATH = Path("data/processed/station_access_cache.json")
 
 REGIONS = {
     "용인 수지": {
@@ -112,7 +116,17 @@ def parse_bool(value: str | None) -> bool:
 def parse_int(value: str | None) -> int | None:
     if not value or not value.strip():
         return None
-    return int(value.strip())
+    return int(float(value.strip().replace(",", "")))
+
+
+def parse_float(value: str | None) -> float | None:
+    if not value or not value.strip():
+        return None
+    return float(value.strip().replace(",", ""))
+
+
+def candidate_key(item: dict[str, Any]) -> tuple[str, str, str, str]:
+    return (item["region"], item["subregion"], item["name"], item["area_bucket"])
 
 
 def load_complex_metadata(path: Path) -> dict[tuple[str, str], dict[str, Any]]:
@@ -135,6 +149,37 @@ def load_complex_metadata(path: Path) -> dict[tuple[str, str], dict[str, Any]]:
                 "memo": (row.get("memo") or "").strip() or None,
             }
     return metadata
+
+
+def load_market_observations(path: Path) -> dict[tuple[str, str, str], dict[str, Any]]:
+    if not path.exists():
+        return {}
+
+    observations: dict[tuple[str, str, str], dict[str, Any]] = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            region = (row.get("region") or "").strip()
+            name = (row.get("complex_name") or "").strip()
+            area_value = parse_float(row.get("area_m2"))
+            bucket = area_bucket(area_value)
+            if not region or not name or bucket is None:
+                continue
+            key = (region, name, bucket)
+            observed_at = (row.get("observed_at") or "").strip()
+            current = observations.get(key)
+            if current and current.get("observed_at", "") > observed_at:
+                continue
+            observations[key] = {
+                "observed_at": observed_at or None,
+                "asking_price_krw": parse_int(row.get("asking_price_krw")),
+                "inventory_count": parse_int(row.get("inventory_count")),
+                "source_id": (row.get("source_id") or "").strip() or None,
+                "source_url": (row.get("source_url") or "").strip() or None,
+                "verification_status": (row.get("verification_status") or "").strip() or None,
+                "memo": (row.get("memo") or "").strip() or None,
+            }
+    return observations
 
 
 def exclusion_reasons(metadata: dict[str, Any] | None) -> list[str]:
@@ -173,14 +218,125 @@ def fetch_trades_with_retry(
     return []
 
 
+def kakao_get(path: str, *, rest_api_key: str, params: dict[str, Any]) -> dict[str, Any] | None:
+    query = urlencode({key: value for key, value in params.items() if value is not None})
+    request = Request(
+        f"https://dapi.kakao.com/v2/local/{path}?{query}",
+        headers={"Authorization": f"KakaoAK {rest_api_key}"},
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except (TimeoutError, URLError, HTTPError):
+        return None
+
+
+def load_json_cache(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def save_json_cache(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def station_access_cache_key(item: dict[str, Any]) -> str:
+    return "|".join(candidate_key(item))
+
+
+def estimate_walk_minutes(distance_m: int | None) -> int | None:
+    if distance_m is None:
+        return None
+    return math.ceil(distance_m / WALKING_DISTANCE_PER_MINUTE_M)
+
+
+def resolve_station_access(
+    item: dict[str, Any],
+    *,
+    rest_api_key: str,
+    cache: dict[str, Any],
+) -> dict[str, Any]:
+    key = station_access_cache_key(item)
+    if key in cache:
+        return cache[key]
+
+    query = f"{item['subregion']} {item['name']} 아파트"
+    place_data = kakao_get(
+        "search/keyword.json",
+        rest_api_key=rest_api_key,
+        params={"query": query, "size": 1},
+    )
+    documents = (place_data or {}).get("documents", [])
+    if not documents:
+        cache[key] = {
+            "nearest_station_name": None,
+            "station_distance_m": None,
+            "station_walk_minutes": None,
+            "station_source": "kakao_local_keyword_not_found",
+        }
+        return cache[key]
+
+    place = documents[0]
+    station_data = kakao_get(
+        "search/category.json",
+        rest_api_key=rest_api_key,
+        params={
+            "category_group_code": "SW8",
+            "x": place.get("x"),
+            "y": place.get("y"),
+            "radius": STATION_SEARCH_RADIUS_M,
+            "sort": "distance",
+            "size": 1,
+        },
+    )
+    stations = (station_data or {}).get("documents", [])
+    if not stations:
+        cache[key] = {
+            "nearest_station_name": None,
+            "station_distance_m": None,
+            "station_walk_minutes": None,
+            "station_source": "kakao_local_station_not_found",
+        }
+        return cache[key]
+
+    station = stations[0]
+    distance_m = parse_int(station.get("distance"))
+    cache[key] = {
+        "nearest_station_name": station.get("place_name"),
+        "station_distance_m": distance_m,
+        "station_walk_minutes": estimate_walk_minutes(distance_m),
+        "station_source": "kakao_local_straight_distance_estimate",
+    }
+    return cache[key]
+
+
+def enrich_station_access(
+    candidates: list[dict[str, Any]],
+    *,
+    rest_api_key: str | None,
+    cache_path: Path = STATION_CACHE_PATH,
+) -> None:
+    if not rest_api_key:
+        return
+
+    cache = load_json_cache(cache_path)
+    for item in candidates:
+        item.update(resolve_station_access(item, rest_api_key=rest_api_key, cache=cache))
+    save_json_cache(cache_path, cache)
+
+
 def fetch_candidates(
     *,
     service_key: str,
     months: list[str],
     metadata_path: Path,
+    observations_path: Path,
 ) -> list[dict[str, Any]]:
     trades_by_complex: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
     metadata_by_complex = load_complex_metadata(metadata_path)
+    observations_by_complex = load_market_observations(observations_path)
 
     for region_name, region in REGIONS.items():
         for subregion, lawd_cd in region["lawd_codes"].items():
@@ -215,6 +371,10 @@ def fetch_candidates(
         latest_price = latest["price_krw"]
         financing_band = classify_price(latest_price)
         metadata = metadata_by_complex.get((subregion, name)) or metadata_by_complex.get((region_name, name))
+        observation = (
+            observations_by_complex.get((subregion, name, bucket))
+            or observations_by_complex.get((region_name, name, bucket))
+        )
         reasons = exclusion_reasons(metadata)
         price_change_pct = round(((latest_price - min_price) / min_price) * 100, 1) if min_price else None
         price_position_pct = (
@@ -251,6 +411,11 @@ def fetch_candidates(
                 "budget_status": budget_status,
                 "financing_band": financing_band.name,
                 "financing_recommendation": financing_band.recommendation,
+                "asking_price_krw": observation.get("asking_price_krw") if observation else None,
+                "asking_observed_at": observation.get("observed_at") if observation else None,
+                "inventory_count": observation.get("inventory_count") if observation else None,
+                "asking_source_url": observation.get("source_url") if observation else None,
+                "asking_verification_status": observation.get("verification_status") if observation else None,
                 "household_count": metadata.get("household_count") if metadata else None,
                 "property_type": metadata.get("property_type") if metadata else "unknown",
                 "excluded": bool(reasons),
@@ -307,6 +472,27 @@ def score_candidate(item: dict[str, Any], *, older_friendly: bool = False) -> fl
         score -= 3
     if item["price_position_pct"] >= 85:
         score -= 2
+    walk_minutes = item.get("station_walk_minutes")
+    if walk_minutes is not None:
+        if walk_minutes <= 10:
+            score += 4
+        elif walk_minutes <= 15:
+            score += 2
+        elif walk_minutes <= 20:
+            score -= 2
+        else:
+            score -= 12
+
+    hoga_gap = asking_gap_pct(item)
+    if hoga_gap is not None:
+        if hoga_gap <= 0:
+            score += 2
+        elif hoga_gap <= 5:
+            score += 1
+        elif hoga_gap <= 10:
+            score -= 4
+        else:
+            score -= 8
     return round(score, 2)
 
 
@@ -348,6 +534,25 @@ def score_seoul_plan(item: dict[str, Any]) -> float:
 
     if item["price_position_pct"] >= 85:
         score -= 2
+    walk_minutes = item.get("station_walk_minutes")
+    if walk_minutes is not None:
+        if walk_minutes <= 10:
+            score += 4
+        elif walk_minutes <= 15:
+            score += 2
+        elif walk_minutes <= 20:
+            score -= 2
+        else:
+            score -= 12
+
+    hoga_gap = asking_gap_pct(item)
+    if hoga_gap is not None:
+        if hoga_gap <= 5:
+            score += 1
+        elif hoga_gap <= 10:
+            score -= 4
+        else:
+            score -= 8
     return round(score, 2)
 
 
@@ -397,10 +602,36 @@ def regional_top10(candidates: list[dict[str, Any]]) -> dict[str, list[dict[str,
     return output
 
 
+def station_enrichment_pool(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_key = {candidate_key(item): item for item in candidates}
+    selected: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+
+    for item in ranked(candidates)[:80]:
+        selected[candidate_key(item)] = by_key[candidate_key(item)]
+    for item in ranked(candidates, older_friendly=True)[:60]:
+        selected[candidate_key(item)] = by_key[candidate_key(item)]
+    for item in ranked_seoul_plan(candidates)[:80]:
+        selected[candidate_key(item)] = by_key[candidate_key(item)]
+    for region_name in REGIONS:
+        region_candidates = [item for item in candidates if item["region"] == region_name]
+        for item in ranked(region_candidates)[:30]:
+            selected[candidate_key(item)] = by_key[candidate_key(item)]
+
+    return list(selected.values())
+
+
 def won_eok(value: int | None) -> str:
     if value is None:
         return "-"
     return f"{value / 100_000_000:.2f}억"
+
+
+def asking_gap_pct(item: dict[str, Any]) -> float | None:
+    asking_price = item.get("asking_price_krw")
+    latest_price = item.get("latest_price_krw")
+    if not asking_price or not latest_price:
+        return None
+    return round(((asking_price - latest_price) / latest_price) * 100, 1)
 
 
 def deal_date(item: dict[str, Any]) -> str:
@@ -421,6 +652,8 @@ def key_reason(item: dict[str, Any]) -> str:
         reasons.append(f"{item['built_year']}년식")
     reasons.append(liquidity_label(item))
     reasons.append(price_position_label(item))
+    reasons.append(station_preference_label(item))
+    reasons.append(asking_preference_label(item))
     reasons.append(scale_label(item))
     return " · ".join(reasons)
 
@@ -463,6 +696,69 @@ def scale_label(item: dict[str, Any]) -> str:
     if household_count >= MIN_HOUSEHOLD_COUNT:
         return "중소형 단지"
     return "소규모"
+
+
+def asking_price_label(item: dict[str, Any]) -> str:
+    asking_price = item.get("asking_price_krw")
+    if asking_price is None:
+        return "조사 필요"
+    observed_at = item.get("asking_observed_at")
+    suffix = f"({observed_at})" if observed_at else ""
+    return f"{won_eok(asking_price)}{suffix}"
+
+
+def asking_gap_label(item: dict[str, Any]) -> str:
+    gap = asking_gap_pct(item)
+    if gap is None:
+        return "-"
+    return f"{gap:+.1f}%"
+
+
+def inventory_label(item: dict[str, Any]) -> str:
+    inventory_count = item.get("inventory_count")
+    if inventory_count is None:
+        return "조사 필요"
+    return str(inventory_count)
+
+
+def station_label(item: dict[str, Any]) -> str:
+    station_name = item.get("nearest_station_name")
+    if not station_name:
+        return "확인 필요"
+    return station_name
+
+
+def station_walk_label(item: dict[str, Any]) -> str:
+    walk_minutes = item.get("station_walk_minutes")
+    if walk_minutes is None:
+        return "확인 필요"
+    return f"약 {walk_minutes}분"
+
+
+def station_preference_label(item: dict[str, Any]) -> str:
+    walk_minutes = item.get("station_walk_minutes")
+    if walk_minutes is None:
+        return "역 접근 확인 필요"
+    if walk_minutes <= 10:
+        return "초역세권"
+    if walk_minutes <= 15:
+        return "역세권"
+    if walk_minutes <= 20:
+        return "역 도보권"
+    return "역세권 약함"
+
+
+def asking_preference_label(item: dict[str, Any]) -> str:
+    gap = asking_gap_pct(item)
+    if gap is None:
+        return "호가 조사 필요"
+    if gap <= 0:
+        return "호가 우호"
+    if gap <= 5:
+        return "호가 보통"
+    if gap <= 10:
+        return "호가 부담"
+    return "호가 과열"
 
 
 def text(content: str, *, bold: bool = False) -> dict[str, Any]:
@@ -534,6 +830,11 @@ def top_rows(items: list[dict[str, Any]]) -> list[list[str]]:
                 str(item["built_year"] or "-"),
                 household_label(item),
                 won_eok(item["latest_price_krw"]),
+                asking_price_label(item),
+                asking_gap_label(item),
+                inventory_label(item),
+                station_label(item),
+                station_walk_label(item),
                 deal_date(item),
                 str(item["trade_count"]),
                 f"{item['price_position_pct']}%",
@@ -554,6 +855,11 @@ def regional_rows(items: list[dict[str, Any]]) -> list[list[str]]:
                 str(item["built_year"] or "-"),
                 household_label(item),
                 won_eok(item["latest_price_krw"]),
+                asking_price_label(item),
+                asking_gap_label(item),
+                inventory_label(item),
+                station_label(item),
+                station_walk_label(item),
                 deal_date(item),
                 item["budget_status"],
                 str(item["trade_count"]),
@@ -571,6 +877,14 @@ def count_unknown_households(items: list[dict[str, Any]]) -> int:
     return sum(1 for item in items if item.get("household_count") is None)
 
 
+def count_unknown_asking(items: list[dict[str, Any]]) -> int:
+    return sum(1 for item in items if item.get("asking_price_krw") is None)
+
+
+def count_station_over_20(items: list[dict[str, Any]]) -> int:
+    return sum(1 for item in items if (item.get("station_walk_minutes") or 0) > 20)
+
+
 def insight_rows(final_top10: list[dict[str, Any]], seoul_top10: list[dict[str, Any]]) -> list[list[str]]:
     final_suji_count = sum(1 for item in final_top10 if item["region"] == "용인 수지")
     final_84_count = sum(1 for item in final_top10 if item["area_bucket"] == "84")
@@ -582,6 +896,8 @@ def insight_rows(final_top10: list[dict[str, Any]], seoul_top10: list[dict[str, 
         ["최종 TOP10 수지 비중", f"{final_suji_count}/10", "출퇴근·선호지역 가중치 반영"],
         ["최종 TOP10 84형 비중", f"{final_84_count}/10", "실거주 면적 안정성 확인"],
         ["최근 고점권 후보", f"{count_price_high(final_top10)}/10", "호가 추격 주의"],
+        ["역 도보 20분 초과", f"{count_station_over_20(final_top10)}/10", "역세권 선호도 크게 하락"],
+        ["호가 미조사", f"{count_unknown_asking(final_top10)}/10", "최저호가·매물 수 보강 필요"],
         ["서울 플랜 중위 실거래", won_eok(seoul_median), "서울 거주 시 면적·연식 타협 필요"],
         ["세대수 미확인", f"{unknown_scale_count}/{len(final_top10) + len(seoul_top10)}", "단지 규모 데이터 보강 필요"],
     ]
@@ -599,21 +915,55 @@ def build_blocks(
     blocks: list[dict[str, Any]] = [
         callout(
             f"랭킹 기준: 국토부 실거래 {start_month[:4]}.{start_month[4:]}~{end_month[:4]}.{end_month[4:]}, "
-            "59/84형, 10.5억 이하, 세대수·주거유형 메타데이터 확인 시 소규모/비아파트성 후보 제외.",
+            "59/84형, 10.5억 이하. 역 도보는 카카오 로컬 직선거리 기반 추정, 호가는 별도 관측값 입력 시 반영.",
         ),
         heading("핵심 인사이트", 2),
         table(["항목", "값", "해석"], insight_rows(final_top10, seoul_top10)),
         divider(),
         heading("최종 TOP10", 2),
         table(
-            ["순위", "지역", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "거래수", "가격위치", "판단 지표"],
+            [
+                "순위",
+                "지역",
+                "단지",
+                "평형",
+                "연식",
+                "세대수",
+                "실거래",
+                "최저호가",
+                "호가갭",
+                "매물",
+                "가까운 역",
+                "역 도보",
+                "거래일",
+                "거래수",
+                "가격위치",
+                "판단 지표",
+            ],
             top_rows(final_top10),
         ),
         divider(),
         heading("서울 거주 플랜 TOP10", 2),
         paragraph("서울 거주를 우선할 때의 별도 후보군입니다. 같은 예산에서는 면적·연식·생활권 타협 가능성이 큽니다."),
         table(
-            ["순위", "지역", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "거래수", "가격위치", "판단 지표"],
+            [
+                "순위",
+                "지역",
+                "단지",
+                "평형",
+                "연식",
+                "세대수",
+                "실거래",
+                "최저호가",
+                "호가갭",
+                "매물",
+                "가까운 역",
+                "역 도보",
+                "거래일",
+                "거래수",
+                "가격위치",
+                "판단 지표",
+            ],
             top_rows(seoul_top10),
         ),
         divider(),
@@ -626,7 +976,23 @@ def build_blocks(
         if items:
             blocks.append(
                 table(
-                    ["순위", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "예산", "거래수", "가격위치"],
+                    [
+                        "순위",
+                        "단지",
+                        "평형",
+                        "연식",
+                        "세대수",
+                        "실거래",
+                        "최저호가",
+                        "호가갭",
+                        "매물",
+                        "가까운 역",
+                        "역 도보",
+                        "거래일",
+                        "예산",
+                        "거래수",
+                        "가격위치",
+                    ],
                     regional_rows(items),
                 )
             )
@@ -639,13 +1005,30 @@ def build_blocks(
             heading("구축 포함 TOP10", 2),
             paragraph("연식 가점을 낮추고 가격·거래량·입지 우선순위를 더 반영한 후보군입니다."),
             table(
-                ["순위", "지역", "단지", "평형", "연식", "세대수", "최근 실거래", "거래일", "거래수", "가격위치", "판단 지표"],
+                [
+                    "순위",
+                    "지역",
+                    "단지",
+                    "평형",
+                    "연식",
+                    "세대수",
+                    "실거래",
+                    "최저호가",
+                    "호가갭",
+                    "매물",
+                    "가까운 역",
+                    "역 도보",
+                    "거래일",
+                    "거래수",
+                    "가격위치",
+                    "판단 지표",
+                ],
                 top_rows(older_top10),
             ),
             divider(),
             heading("보강 필요 데이터", 2),
-            paragraph("최저호가, 매물 수, 세대수, 주거유형, 역 도보시간, 주차/수리 리스크, 생활 인프라."),
-            paragraph("출처: 국토교통부 실거래가 공개시스템 API. 호가·매물 수·세대수는 별도 데이터 보강 대상."),
+            paragraph("최저호가, 매물 수, 세대수, 주거유형, 실제 보행 경로, 주차/수리 리스크, 생활 인프라."),
+            paragraph("출처: 국토교통부 실거래가 공개시스템 API, 카카오 로컬 API. 호가·매물 수·세대수는 별도 데이터 보강 대상."),
         ]
     )
     return blocks
@@ -724,8 +1107,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Publish data-backed TOP10 rankings to Notion.")
     parser.add_argument("--months", nargs="+", help="YYYYMM values. Defaults to same month last year through current month.")
     parser.add_argument("--metadata", type=Path, default=Path("data/manual/complex_metadata.csv"))
+    parser.add_argument("--observations", type=Path, default=Path("data/manual/market_observations.csv"))
     parser.add_argument("--output", type=Path, default=Path("data/processed/recommendation_rankings.json"))
     parser.add_argument("--skip-notion", action="store_true")
+    parser.add_argument("--skip-station-access", action="store_true")
     args = parser.parse_args()
 
     env = read_env()
@@ -734,7 +1119,17 @@ def main() -> None:
         raise SystemExit("PUBLIC_DATA_API_KEY is required in .env")
 
     months = args.months or default_months(date.today())
-    candidates = fetch_candidates(service_key=service_key, months=months, metadata_path=args.metadata)
+    candidates = fetch_candidates(
+        service_key=service_key,
+        months=months,
+        metadata_path=args.metadata,
+        observations_path=args.observations,
+    )
+    if not args.skip_station_access:
+        enrich_station_access(
+            station_enrichment_pool(candidates),
+            rest_api_key=env.get("KAKAO_REST_API_KEY"),
+        )
     final_top10 = ranked(candidates)[:10]
     seoul_top10 = ranked_seoul_plan(candidates)[:10]
     region_tops = regional_top10(candidates)
