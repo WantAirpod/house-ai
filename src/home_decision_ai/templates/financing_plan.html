@@ -197,7 +197,7 @@
           <h3>계약 전 확인</h3>
           <ul>
             <li>주담대 6억원과 신용대출을 동일 조건으로 은행 2곳 이상 사전심사</li>
-            <li>전세 순자금 1억원이 보유현금 2.8억원에 포함되는지 확정</li>
+            <li>전세보증금과 전세대출은 기본값 0원이며 사용할 금액만 계산기에 직접 입력</li>
             <li>부모 차용 만기 원금 7천만원의 상환재원 별도 기록</li>
           </ul>
         </div></div>
@@ -237,7 +237,11 @@
 
       async function render() {
         const defaults = await (await fetch("/api/financing/defaults")).json();
-        const saved = JSON.parse(localStorage.getItem("home-decision-financing") || "{}");
+        const stored = JSON.parse(localStorage.getItem("home-decision-financing") || "{}");
+        const saved = stored._schema_version === 2
+          ? stored
+          : { ...stored, lease_deposit_krw: 0, lease_loan_krw: 0 };
+        delete saved._schema_version;
         const base = { ...defaults, ...saved };
         const monthlyIncome = inputWon("monthly-income");
         const livingCost = inputWon("living-cost");

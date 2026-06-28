@@ -15,8 +15,8 @@ from home_decision_ai.settings import get_settings
 class FinancingCalculatorRequest(BaseModel):
     purchase_price_krw: int = Field(default=990_000_000, ge=0)
     cash_krw: int = Field(default=280_000_000, ge=0)
-    lease_deposit_krw: int = Field(default=400_000_000, ge=0)
-    lease_loan_krw: int = Field(default=300_000_000, ge=0)
+    lease_deposit_krw: int = Field(default=0, ge=0)
+    lease_loan_krw: int = Field(default=0, ge=0)
     lease_equity_included_in_cash: bool = True
     combined_gross_income_krw: int = Field(default=150_000_000, gt=0)
     mortgage_amount_krw: int = Field(default=600_000_000, ge=0)

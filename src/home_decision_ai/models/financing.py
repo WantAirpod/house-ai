@@ -51,8 +51,8 @@ def classify_price(price_krw: int, bands: list[FinancingBand] | None = None) -> 
 class FinancingScenarioInput:
     purchase_price_krw: int = 990_000_000
     cash_krw: int = 280_000_000
-    lease_deposit_krw: int = 400_000_000
-    lease_loan_krw: int = 300_000_000
+    lease_deposit_krw: int = 0
+    lease_loan_krw: int = 0
     lease_equity_included_in_cash: bool = True
     combined_gross_income_krw: int = 150_000_000
     mortgage_amount_krw: int = 600_000_000

@@ -76,12 +76,23 @@ def test_zero_card_ratio_moves_all_transaction_costs_to_credit_need() -> None:
 
 def test_separate_lease_equity_reduces_credit_need() -> None:
     result = calculate_financing_scenario(
-        FinancingScenarioInput(lease_equity_included_in_cash=False)
+        FinancingScenarioInput(
+            lease_deposit_krw=400_000_000,
+            lease_loan_krw=300_000_000,
+            lease_equity_included_in_cash=False,
+        )
     )
 
     assert result["available_cash_krw"] == 380_000_000
     assert result["required_credit_loan_krw"] == 0
     assert result["cash_surplus_krw"] == 60_000_000
+
+
+def test_lease_values_are_ignored_until_user_enters_them() -> None:
+    result = calculate_financing_scenario(FinancingScenarioInput())
+
+    assert result["lease_equity_krw"] == 0
+    assert result["available_cash_krw"] == 280_000_000
 
 
 def test_first_time_homebuyer_discount_reduces_tax_and_credit_need() -> None:
