@@ -19,6 +19,7 @@ def test_financing_calculator_page() -> None:
 
     assert response.status_code == 200
     assert "자금·대출 계산기" in response.text
+    assert "생애최초 취득세 감면 가정" in response.text
 
 
 def test_financing_calculation_api_moves_card_costs_out_of_credit() -> None:

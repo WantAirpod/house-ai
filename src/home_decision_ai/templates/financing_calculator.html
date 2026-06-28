@@ -256,6 +256,14 @@
                 <div class="input-wrap"><input id="credit_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
               </div>
               <div class="field">
+                <label for="credit_stress_rate_percent">신용대출 스트레스 금리</label>
+                <div class="input-wrap"><input id="credit_stress_rate_percent" type="number" min="0" step="0.1"><span class="unit">%p</span></div>
+              </div>
+              <div class="field">
+                <label for="credit_stress_threshold_krw">신용대출 스트레스 적용 기준</label>
+                <div class="input-wrap"><input id="credit_stress_threshold_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
                 <label for="family_loan_amount_krw">부모 차용</label>
                 <div class="input-wrap"><input id="family_loan_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
@@ -278,6 +286,18 @@
                 <div class="input-wrap"><input id="acquisition_tax_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
               <div class="field">
+                <label for="first_time_homebuyer_price_limit_krw">생애최초 주택가격 상한</label>
+                <div class="input-wrap"><input id="first_time_homebuyer_price_limit_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="first_time_acquisition_tax_discount_limit_krw">생애최초 취득세 감면 한도</label>
+                <div class="input-wrap"><input id="first_time_acquisition_tax_discount_limit_krw" type="number" min="0" step="10"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="local_education_tax_discount_ratio_percent">지방교육세 연동 감면률</label>
+                <div class="input-wrap"><input id="local_education_tax_discount_ratio_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
                 <label for="brokerage_rate_percent">중개보수·부가세율</label>
                 <div class="input-wrap"><input id="brokerage_rate_percent" type="number" min="0" step="0.05"><span class="unit">%</span></div>
               </div>
@@ -293,8 +313,20 @@
                 <label for="card_installment_rate_percent">카드 할부금리</label>
                 <div class="input-wrap"><input id="card_installment_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
+              <div class="field">
+                <label for="dsr_warning_percent">DSR 경고 기준</label>
+                <div class="input-wrap"><input id="dsr_warning_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="dsr_limit_percent">DSR 한도 기준</label>
+                <div class="input-wrap"><input id="dsr_limit_percent" type="number" min="0.1" step="0.1"><span class="unit">%</span></div>
+              </div>
             </div>
             <div class="toggle-list">
+              <div class="toggle-row">
+                <div class="toggle-copy"><strong>생애최초 취득세 감면 가정</strong><span>본인·배우자 모두 과거 주택 소유 이력이 없을 때 선택</span></div>
+                <input id="first_time_homebuyer_eligible" type="checkbox">
+              </div>
               <div class="toggle-row"><div class="toggle-copy"><strong>취득세 카드 결제</strong><span id="tax-card-copy">-</span></div><input id="card_acquisition_tax" type="checkbox"></div>
               <div class="toggle-row"><div class="toggle-copy"><strong>중개보수 카드 결제</strong><span id="broker-card-copy">-</span></div><input id="card_brokerage" type="checkbox"></div>
               <div class="toggle-row"><div class="toggle-copy"><strong>등기·법무비 카드 결제</strong><span>가맹 여부 확인 필요</span></div><input id="card_legal_cost" type="checkbox"></div>
@@ -319,7 +351,9 @@
                 <thead><tr><th>자금 항목</th><th>금액</th></tr></thead>
                 <tbody>
                   <tr><td>매매가와 거래비 총액</td><td id="total-required">-</td></tr>
-                  <tr><td>취득 관련 세금</td><td id="acquisition-tax">-</td></tr>
+                  <tr><td>감면 전 취득 관련 세금</td><td id="gross-acquisition-tax">-</td></tr>
+                  <tr><td>생애최초 감면 예상액</td><td id="first-time-tax-discount">-</td></tr>
+                  <tr><td>최종 취득 관련 세금</td><td id="acquisition-tax">-</td></tr>
                   <tr><td>중개보수·부가세</td><td id="brokerage">-</td></tr>
                   <tr><td>카드 결제로 이동</td><td id="card-shift">-</td></tr>
                   <tr><td>잔금 시 현금 필요액</td><td id="cash-at-closing">-</td></tr>
@@ -352,17 +386,21 @@
       const amountFields = new Set([
         "purchase_price_krw", "cash_krw", "lease_deposit_krw", "lease_loan_krw",
         "combined_gross_income_krw", "mortgage_amount_krw", "family_loan_amount_krw",
-        "legal_cost_krw"
+        "legal_cost_krw", "credit_stress_threshold_krw",
+        "first_time_homebuyer_price_limit_krw", "first_time_acquisition_tax_discount_limit_krw"
       ]);
       const checkboxFields = new Set([
-        "lease_equity_included_in_cash", "card_acquisition_tax", "card_brokerage", "card_legal_cost"
+        "lease_equity_included_in_cash", "first_time_homebuyer_eligible",
+        "card_acquisition_tax", "card_brokerage", "card_legal_cost"
       ]);
       const fieldIds = [
         ...amountFields, "mortgage_rate_percent", "mortgage_term_years",
         "mortgage_stress_rate_percent", "mortgage_stress_ratio_percent", "credit_rate_percent",
-        "credit_term_years", "family_loan_rate_percent", "family_loan_term_years",
+        "credit_term_years", "credit_stress_rate_percent", "family_loan_rate_percent",
+        "family_loan_term_years",
         "acquisition_tax_rate_percent", "brokerage_rate_percent", "card_installment_months",
-        "card_installment_rate_percent", ...checkboxFields
+        "card_installment_rate_percent", "local_education_tax_discount_ratio_percent",
+        "dsr_warning_percent", "dsr_limit_percent", ...checkboxFields
       ];
       let defaults = null;
       let latestResult = null;
@@ -397,14 +435,15 @@
             payload[id] = amountFields.has(id) ? Math.round(number * 10000) : number;
           }
         });
-        payload.credit_stress_rate_percent = defaults.credit_stress_rate_percent;
         return payload;
       }
 
       function setBar(id, value) {
         const bar = document.getElementById(id);
-        bar.style.width = `${Math.min(100, value / 50 * 100)}%`;
-        bar.className = `bar-fill${value >= 40 ? " danger" : value >= 39 ? " warning" : ""}`;
+        const limit = latestResult?.dsr_limit_percent || 40;
+        const warning = latestResult?.dsr_warning_percent || 39;
+        bar.style.width = `${Math.min(100, value / Math.max(limit * 1.25, 1) * 100)}%`;
+        bar.className = `bar-fill${value >= limit ? " danger" : value >= warning ? " warning" : ""}`;
       }
 
       function render(result) {
@@ -422,6 +461,8 @@
 
         const values = {
           "total-required": result.total_required_krw,
+          "gross-acquisition-tax": result.gross_acquisition_tax_krw,
+          "first-time-tax-discount": result.first_time_tax_discount_krw,
           "acquisition-tax": result.acquisition_tax_krw,
           "brokerage": result.brokerage_krw,
           "card-shift": result.card_payment_total_krw,
@@ -443,7 +484,7 @@
         warningList.innerHTML = "";
         result.warnings.forEach(message => {
           const item = document.createElement("div");
-          item.className = `warning-item${result.stress_dsr_percent >= 40 ? " danger" : ""}`;
+          item.className = `warning-item${result.stress_dsr_percent >= result.dsr_limit_percent ? " danger" : ""}`;
           item.textContent = message;
           warningList.appendChild(item);
         });

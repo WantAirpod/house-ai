@@ -63,10 +63,15 @@ class FinancingScenarioInput:
     credit_rate_percent: float = 6.0
     credit_term_years: int = 7
     credit_stress_rate_percent: float = 1.5
+    credit_stress_threshold_krw: int = 100_000_000
     family_loan_amount_krw: int = 70_000_000
     family_loan_rate_percent: float = 4.6
     family_loan_term_years: int = 10
     acquisition_tax_rate_percent: float = 3.3
+    first_time_homebuyer_eligible: bool = False
+    first_time_homebuyer_price_limit_krw: int = 1_200_000_000
+    first_time_acquisition_tax_discount_limit_krw: int = 2_000_000
+    local_education_tax_discount_ratio_percent: float = 10.0
     brokerage_rate_percent: float = 0.55
     legal_cost_krw: int = 2_000_000
     card_acquisition_tax: bool = True
@@ -74,6 +79,8 @@ class FinancingScenarioInput:
     card_legal_cost: bool = True
     card_installment_months: int = 12
     card_installment_rate_percent: float = 0.0
+    dsr_warning_percent: float = 39.0
+    dsr_limit_percent: float = 40.0
 
 
 def annuity_payment(principal_krw: float, annual_rate_percent: float, months: int) -> float:
@@ -98,6 +105,9 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         values.mortgage_amount_krw,
         values.family_loan_amount_krw,
         values.legal_cost_krw,
+        values.first_time_homebuyer_price_limit_krw,
+        values.first_time_acquisition_tax_discount_limit_krw,
+        values.credit_stress_threshold_krw,
     ]
     if any(value < 0 for value in numeric_values):
         raise ValueError("amounts cannot be negative")
@@ -111,7 +121,29 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     if not values.lease_equity_included_in_cash:
         available_cash += lease_equity
 
-    acquisition_tax = round(values.purchase_price_krw * values.acquisition_tax_rate_percent / 100)
+    gross_acquisition_tax = round(
+        values.purchase_price_krw * values.acquisition_tax_rate_percent / 100
+    )
+    first_time_discount_applied = (
+        values.first_time_homebuyer_eligible
+        and values.purchase_price_krw <= values.first_time_homebuyer_price_limit_krw
+    )
+    acquisition_tax_discount = (
+        min(
+            round(
+                gross_acquisition_tax
+                / (1 + values.local_education_tax_discount_ratio_percent / 100)
+            ),
+            values.first_time_acquisition_tax_discount_limit_krw,
+        )
+        if first_time_discount_applied
+        else 0
+    )
+    local_education_tax_discount = round(
+        acquisition_tax_discount * values.local_education_tax_discount_ratio_percent / 100
+    )
+    first_time_tax_discount = acquisition_tax_discount + local_education_tax_discount
+    acquisition_tax = max(0, gross_acquisition_tax - first_time_tax_discount)
     brokerage = round(values.purchase_price_krw * values.brokerage_rate_percent / 100)
     card_items = {
         "acquisition_tax": acquisition_tax if values.card_acquisition_tax else 0,
@@ -149,7 +181,7 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         values.card_installment_months,
     )
 
-    credit_stress_applied = required_credit_loan > 100_000_000
+    credit_stress_applied = required_credit_loan > values.credit_stress_threshold_krw
     mortgage_stress_rate = values.mortgage_rate_percent + (
         values.mortgage_stress_rate_percent * values.mortgage_stress_ratio_percent / 100
     )
@@ -174,12 +206,32 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     total_required = values.purchase_price_krw + total_transaction_cost
 
     warnings: list[str] = []
-    if stress_dsr >= 40:
-        warnings.append("스트레스 DSR이 40% 이상입니다. 대출 승인 가능성이 낮습니다.")
-    elif stress_dsr >= 39:
-        warnings.append("스트레스 DSR이 내부 경계구간인 39~40%입니다.")
+    if stress_dsr >= values.dsr_limit_percent:
+        warnings.append(
+            f"스트레스 DSR이 설정 한도 {values.dsr_limit_percent:g}% 이상입니다. "
+            "대출 승인 가능성이 낮습니다."
+        )
+    elif stress_dsr >= values.dsr_warning_percent:
+        warnings.append(
+            f"스트레스 DSR이 설정 경고구간 {values.dsr_warning_percent:g}~"
+            f"{values.dsr_limit_percent:g}%입니다."
+        )
     if credit_stress_applied:
-        warnings.append("신용대출이 1억원을 초과해 신용대출 스트레스 금리를 반영했습니다.")
+        warnings.append(
+            f"신용대출이 설정 기준 {values.credit_stress_threshold_krw:,}원을 초과해 "
+            "신용대출 스트레스 금리를 반영했습니다."
+        )
+    if values.first_time_homebuyer_eligible and not first_time_discount_applied:
+        warnings.append("매매가가 12억원을 초과해 생애최초 취득세 감면을 적용하지 않았습니다.")
+    if first_time_discount_applied:
+        warnings.append(
+            "생애최초 감면은 본인과 배우자의 과거 주택 소유 이력이 없다는 가정입니다. "
+            "관할 시·군·구에서 자격과 최종 세액을 확인해야 합니다."
+        )
+        warnings.append(
+            "취득일부터 3년 이내 매각·증여·임대 등 다른 용도로 사용하면 감면세액이 "
+            "추징될 수 있습니다."
+        )
     if card_payment_total > 0:
         warnings.append(
             "카드 결제분은 신용대출에서 제외했지만 카드 결제일까지 갚아야 하는 부채입니다."
@@ -190,6 +242,11 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     result = {
         "lease_equity_krw": round(lease_equity),
         "available_cash_krw": round(available_cash),
+        "gross_acquisition_tax_krw": gross_acquisition_tax,
+        "first_time_discount_applied": first_time_discount_applied,
+        "first_time_acquisition_tax_discount_krw": acquisition_tax_discount,
+        "first_time_local_education_tax_discount_krw": local_education_tax_discount,
+        "first_time_tax_discount_krw": first_time_tax_discount,
         "acquisition_tax_krw": acquisition_tax,
         "brokerage_krw": brokerage,
         "legal_cost_krw": values.legal_cost_krw,
@@ -214,6 +271,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "mortgage_stress_rate_percent": round(mortgage_stress_rate, 2),
         "credit_stress_rate_percent": round(credit_stress_rate, 2),
         "credit_stress_applied": credit_stress_applied,
+        "dsr_warning_percent": values.dsr_warning_percent,
+        "dsr_limit_percent": values.dsr_limit_percent,
         "combined_monthly_income_krw": round(combined_monthly_income(values)),
         "warnings": warnings,
     }

@@ -27,10 +27,15 @@ class FinancingCalculatorRequest(BaseModel):
     credit_rate_percent: float = Field(default=6.0, ge=0)
     credit_term_years: int = Field(default=7, gt=0)
     credit_stress_rate_percent: float = Field(default=1.5, ge=0)
+    credit_stress_threshold_krw: int = Field(default=100_000_000, ge=0)
     family_loan_amount_krw: int = Field(default=70_000_000, ge=0)
     family_loan_rate_percent: float = Field(default=4.6, ge=0)
     family_loan_term_years: int = Field(default=10, gt=0)
     acquisition_tax_rate_percent: float = Field(default=3.3, ge=0)
+    first_time_homebuyer_eligible: bool = False
+    first_time_homebuyer_price_limit_krw: int = Field(default=1_200_000_000, ge=0)
+    first_time_acquisition_tax_discount_limit_krw: int = Field(default=2_000_000, ge=0)
+    local_education_tax_discount_ratio_percent: float = Field(default=10.0, ge=0)
     brokerage_rate_percent: float = Field(default=0.55, ge=0)
     legal_cost_krw: int = Field(default=2_000_000, ge=0)
     card_acquisition_tax: bool = True
@@ -38,6 +43,8 @@ class FinancingCalculatorRequest(BaseModel):
     card_legal_cost: bool = True
     card_installment_months: int = Field(default=12, gt=0)
     card_installment_rate_percent: float = Field(default=0.0, ge=0)
+    dsr_warning_percent: float = Field(default=39.0, ge=0)
+    dsr_limit_percent: float = Field(default=40.0, gt=0)
 
     def to_domain(self) -> FinancingScenarioInput:
         return FinancingScenarioInput(**self.model_dump())
