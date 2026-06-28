@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>자금·대출 계산기 | home-decision-ai</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f5f2;
+        --surface: #ffffff;
+        --surface-muted: #f0f2ee;
+        --ink: #17201b;
+        --muted: #667068;
+        --line: #d8ddd8;
+        --accent: #176b48;
+        --accent-soft: #e8f2ec;
+        --warning: #a35a00;
+        --warning-soft: #fff3df;
+        --danger: #a13232;
+        --danger-soft: #fbeaea;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+      button, input, select { font: inherit; }
+      a { color: inherit; }
+      header {
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+      .header-inner, main { width: min(1440px, calc(100% - 32px)); margin: 0 auto; }
+      .header-inner {
+        min-height: 68px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      h1 { margin: 0; font-size: 22px; font-weight: 750; }
+      .subtle { color: var(--muted); font-size: 13px; }
+      .header-actions { display: flex; align-items: center; gap: 8px; }
+      button {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink);
+        padding: 0 12px;
+        cursor: pointer;
+      }
+      button:hover { border-color: #aeb8b0; background: var(--surface-muted); }
+      main { padding: 24px 0 48px; }
+      .price-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        overflow-x: auto;
+      }
+      .price-strip strong { white-space: nowrap; font-size: 14px; margin-right: 4px; }
+      .price-button { min-width: 76px; white-space: nowrap; }
+      .price-button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+      .workspace { display: grid; grid-template-columns: minmax(440px, 0.88fr) minmax(560px, 1.12fr); gap: 18px; align-items: start; }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+      .panel-title {
+        margin: 0;
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--line);
+        font-size: 15px;
+      }
+      .input-section { padding: 16px 18px 18px; border-bottom: 1px solid var(--line); }
+      .input-section:last-child { border-bottom: 0; }
+      .section-label { margin: 0 0 12px; font-size: 13px; color: var(--muted); text-transform: uppercase; }
+      .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .field { min-width: 0; }
+      label { display: block; margin-bottom: 6px; color: #404a43; font-size: 13px; }
+      .input-wrap { position: relative; }
+      input[type="number"], select {
+        width: 100%;
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 48px 0 10px;
+        outline: none;
+      }
+      select { padding-right: 30px; }
+      input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+      .unit { position: absolute; right: 10px; top: 11px; color: var(--muted); font-size: 12px; pointer-events: none; }
+      .toggle-list { display: grid; gap: 8px; }
+      .toggle-row {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      .toggle-copy strong { display: block; font-size: 13px; }
+      .toggle-copy span { color: var(--muted); font-size: 12px; }
+      input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }
+      .result-panel { position: sticky; top: 16px; }
+      .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+      .metric { min-height: 112px; padding: 16px; border-right: 1px solid var(--line); }
+      .metric:last-child { border-right: 0; }
+      .metric-label { color: var(--muted); font-size: 12px; }
+      .metric-value { margin-top: 9px; font-size: 21px; font-weight: 760; white-space: nowrap; }
+      .metric-note { margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+      .result-body { padding: 18px; }
+      .dsr-row { display: grid; grid-template-columns: 110px 1fr 58px; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+      .bar { height: 10px; background: #e7eae7; border-radius: 5px; overflow: hidden; }
+      .bar-fill { width: 0; height: 100%; background: var(--accent); transition: width 180ms ease; }
+      .bar-fill.warning { background: var(--warning); }
+      .bar-fill.danger { background: var(--danger); }
+      .table-wrap { overflow-x: auto; margin-top: 20px; }
+      table { width: 100%; border-collapse: collapse; min-width: 520px; }
+      th, td { padding: 10px 8px; border-bottom: 1px solid #e8ebe8; text-align: left; font-size: 13px; }
+      th { color: var(--muted); font-weight: 650; background: var(--surface-muted); }
+      td:last-child, th:last-child { text-align: right; }
+      .warning-list { display: grid; gap: 8px; margin-top: 18px; }
+      .warning-item { padding: 10px 12px; border-left: 3px solid var(--warning); background: var(--warning-soft); font-size: 12px; line-height: 1.5; }
+      .warning-item.danger { border-color: var(--danger); background: var(--danger-soft); }
+      .status-line { min-height: 20px; margin-top: 12px; color: var(--muted); font-size: 12px; }
+      .error { color: var(--danger); }
+      @media (max-width: 1050px) {
+        .workspace { grid-template-columns: 1fr; }
+        .result-panel { position: static; }
+      }
+      @media (max-width: 720px) {
+        .header-inner, main { width: min(100% - 20px, 1440px); }
+        .header-inner { align-items: stretch; flex-direction: column; padding: 14px 0; gap: 10px; }
+        h1 { font-size: 19px; white-space: nowrap; }
+        .header-actions { width: 100%; }
+        .header-actions button { flex: 1; padding: 0 8px; font-size: 12px; }
+        .subtle { display: none; }
+        .price-strip { gap: 5px; }
+        .price-strip strong { display: none; }
+        .price-button { min-width: 0; flex: 1; padding: 0 5px; font-size: 12px; }
+        .fields { grid-template-columns: 1fr; }
+        .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .metric:nth-child(2) { border-right: 0; }
+        .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+        .metric-value { font-size: 18px; }
+        .dsr-row { grid-template-columns: 92px 1fr 50px; }
+        table { min-width: 0; table-layout: fixed; }
+        th, td { padding: 9px 6px; font-size: 11px; }
+        th:last-child, td:last-child { width: 42%; overflow-wrap: anywhere; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div>
+          <h1>자금·대출 계산기</h1>
+          <div class="subtle">기흥 실거주 매수 · 기준일 2026-06-28</div>
+        </div>
+        <div class="header-actions">
+          <button id="reset-button" type="button">기본값 복원</button>
+          <button id="export-button" type="button">CSV 내보내기</button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class="price-strip" aria-label="매매가 빠른 선택">
+        <strong>매매가</strong>
+        <button class="price-button" type="button" data-price="990000000">9.9억</button>
+        <button class="price-button" type="button" data-price="1000000000">10.0억</button>
+        <button class="price-button" type="button" data-price="1010000000">10.1억</button>
+        <button class="price-button" type="button" data-price="1020000000">10.2억</button>
+        <button class="price-button" type="button" data-price="1030000000">10.3억</button>
+      </div>
+
+      <div class="workspace">
+        <section class="panel" aria-labelledby="input-title">
+          <h2 class="panel-title" id="input-title">입력값</h2>
+          <div class="input-section">
+            <h3 class="section-label">매수 자금</h3>
+            <div class="fields">
+              <div class="field">
+                <label for="purchase_price_krw">매매가</label>
+                <div class="input-wrap"><input id="purchase_price_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="cash_krw">보유 현금</label>
+                <div class="input-wrap"><input id="cash_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="lease_deposit_krw">전세보증금</label>
+                <div class="input-wrap"><input id="lease_deposit_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="lease_loan_krw">전세대출 잔액</label>
+                <div class="input-wrap"><input id="lease_loan_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top: 12px;">
+              <div class="toggle-copy"><strong>전세 순자금이 현금에 포함</strong><span>켜짐: 2.8억원 안에 순자금 1억원 포함</span></div>
+              <input id="lease_equity_included_in_cash" type="checkbox">
+            </div>
+          </div>
+
+          <div class="input-section">
+            <h3 class="section-label">소득과 대출</h3>
+            <div class="fields">
+              <div class="field">
+                <label for="combined_gross_income_krw">부부 합산 연소득</label>
+                <div class="input-wrap"><input id="combined_gross_income_krw" type="number" min="1" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="mortgage_amount_krw">주담대</label>
+                <div class="input-wrap"><input id="mortgage_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="mortgage_rate_percent">주담대 금리</label>
+                <div class="input-wrap"><input id="mortgage_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="mortgage_term_years">주담대 기간</label>
+                <div class="input-wrap"><input id="mortgage_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
+              </div>
+              <div class="field">
+                <label for="mortgage_stress_ratio_percent">주담대 유형</label>
+                <select id="mortgage_stress_ratio_percent">
+                  <option value="0">장기 완전고정형</option>
+                  <option value="40">5년 주기형</option>
+                  <option value="80">5년 혼합형</option>
+                  <option value="100">변동형</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mortgage_stress_rate_percent">주담대 스트레스 금리</label>
+                <div class="input-wrap"><input id="mortgage_stress_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="credit_rate_percent">신용대출 금리</label>
+                <div class="input-wrap"><input id="credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="credit_term_years">신용대출 기간</label>
+                <div class="input-wrap"><input id="credit_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
+              </div>
+              <div class="field">
+                <label for="family_loan_amount_krw">부모 차용</label>
+                <div class="input-wrap"><input id="family_loan_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="family_loan_rate_percent">부모 차용 금리</label>
+                <div class="input-wrap"><input id="family_loan_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="family_loan_term_years">부모 차용 만기</label>
+                <div class="input-wrap"><input id="family_loan_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-section">
+            <h3 class="section-label">거래비와 카드</h3>
+            <div class="fields" style="margin-bottom: 12px;">
+              <div class="field">
+                <label for="acquisition_tax_rate_percent">취득 관련 세율</label>
+                <div class="input-wrap"><input id="acquisition_tax_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="brokerage_rate_percent">중개보수·부가세율</label>
+                <div class="input-wrap"><input id="brokerage_rate_percent" type="number" min="0" step="0.05"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="legal_cost_krw">등기·법무비</label>
+                <div class="input-wrap"><input id="legal_cost_krw" type="number" min="0" step="10"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="card_installment_months">카드 할부기간</label>
+                <div class="input-wrap"><input id="card_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
+              </div>
+              <div class="field">
+                <label for="card_installment_rate_percent">카드 할부금리</label>
+                <div class="input-wrap"><input id="card_installment_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+            </div>
+            <div class="toggle-list">
+              <div class="toggle-row"><div class="toggle-copy"><strong>취득세 카드 결제</strong><span id="tax-card-copy">-</span></div><input id="card_acquisition_tax" type="checkbox"></div>
+              <div class="toggle-row"><div class="toggle-copy"><strong>중개보수 카드 결제</strong><span id="broker-card-copy">-</span></div><input id="card_brokerage" type="checkbox"></div>
+              <div class="toggle-row"><div class="toggle-copy"><strong>등기·법무비 카드 결제</strong><span>가맹 여부 확인 필요</span></div><input id="card_legal_cost" type="checkbox"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel result-panel" aria-labelledby="result-title">
+          <h2 class="panel-title" id="result-title">계산 결과</h2>
+          <div class="metrics">
+            <div class="metric"><div class="metric-label">필요 신용대출</div><div class="metric-value" id="required-credit">-</div><div class="metric-note">카드 결제분 제외</div></div>
+            <div class="metric"><div class="metric-label">카드 결제 예정</div><div class="metric-value" id="card-total">-</div><div class="metric-note" id="card-monthly-note">-</div></div>
+            <div class="metric"><div class="metric-label">스트레스 DSR</div><div class="metric-value" id="stress-dsr">-</div><div class="metric-note" id="stress-rate-note">-</div></div>
+            <div class="metric"><div class="metric-label">카드기간 월 유출</div><div class="metric-value" id="monthly-outflow">-</div><div class="metric-note">부모 원금 적립 포함</div></div>
+          </div>
+          <div class="result-body">
+            <div class="dsr-row"><span>계약금리 DSR</span><div class="bar"><div class="bar-fill" id="contract-bar"></div></div><strong id="contract-dsr">-</strong></div>
+            <div class="dsr-row"><span>스트레스 DSR</span><div class="bar"><div class="bar-fill" id="stress-bar"></div></div><strong id="stress-dsr-row">-</strong></div>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>자금 항목</th><th>금액</th></tr></thead>
+                <tbody>
+                  <tr><td>매매가와 거래비 총액</td><td id="total-required">-</td></tr>
+                  <tr><td>취득 관련 세금</td><td id="acquisition-tax">-</td></tr>
+                  <tr><td>중개보수·부가세</td><td id="brokerage">-</td></tr>
+                  <tr><td>카드 결제로 이동</td><td id="card-shift">-</td></tr>
+                  <tr><td>잔금 시 현금 필요액</td><td id="cash-at-closing">-</td></tr>
+                  <tr><td>사용 가능한 현금</td><td id="available-cash">-</td></tr>
+                  <tr><td>잔여 현금</td><td id="cash-surplus">-</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>월 현금흐름</th><th>월 금액</th></tr></thead>
+                <tbody>
+                  <tr><td>주담대 원리금</td><td id="mortgage-monthly">-</td></tr>
+                  <tr><td>신용대출 원리금</td><td id="credit-monthly">-</td></tr>
+                  <tr><td>부모 차용 이자</td><td id="family-interest">-</td></tr>
+                  <tr><td>부모 원금 적립</td><td id="family-reserve">-</td></tr>
+                  <tr><td>카드 할부</td><td id="card-monthly">-</td></tr>
+                  <tr><td><strong>카드 할부기간 총 월 유출</strong></td><td id="monthly-total"><strong>-</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="warning-list" id="warning-list"></div>
+            <div class="status-line" id="status-line">입력값을 불러오는 중입니다.</div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script>
+      const amountFields = new Set([
+        "purchase_price_krw", "cash_krw", "lease_deposit_krw", "lease_loan_krw",
+        "combined_gross_income_krw", "mortgage_amount_krw", "family_loan_amount_krw",
+        "legal_cost_krw"
+      ]);
+      const checkboxFields = new Set([
+        "lease_equity_included_in_cash", "card_acquisition_tax", "card_brokerage", "card_legal_cost"
+      ]);
+      const fieldIds = [
+        ...amountFields, "mortgage_rate_percent", "mortgage_term_years",
+        "mortgage_stress_rate_percent", "mortgage_stress_ratio_percent", "credit_rate_percent",
+        "credit_term_years", "family_loan_rate_percent", "family_loan_term_years",
+        "acquisition_tax_rate_percent", "brokerage_rate_percent", "card_installment_months",
+        "card_installment_rate_percent", ...checkboxFields
+      ];
+      let defaults = null;
+      let latestResult = null;
+      let debounceTimer = null;
+
+      const won = value => `${Math.round(value).toLocaleString("ko-KR")}원`;
+      const compactWon = value => {
+        const amount = Math.round(value);
+        if (Math.abs(amount) >= 100000000) {
+          const eok = amount / 100000000;
+          return `${eok.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}억`;
+        }
+        return `${Math.round(amount / 10000).toLocaleString("ko-KR")}만원`;
+      };
+
+      function setForm(values) {
+        fieldIds.forEach(id => {
+          const input = document.getElementById(id);
+          if (!input || values[id] === undefined) return;
+          if (checkboxFields.has(id)) input.checked = Boolean(values[id]);
+          else input.value = amountFields.has(id) ? values[id] / 10000 : values[id];
+        });
+      }
+
+      function readForm() {
+        const payload = {};
+        fieldIds.forEach(id => {
+          const input = document.getElementById(id);
+          if (checkboxFields.has(id)) payload[id] = input.checked;
+          else {
+            const number = Number(input.value || 0);
+            payload[id] = amountFields.has(id) ? Math.round(number * 10000) : number;
+          }
+        });
+        payload.credit_stress_rate_percent = defaults.credit_stress_rate_percent;
+        return payload;
+      }
+
+      function setBar(id, value) {
+        const bar = document.getElementById(id);
+        bar.style.width = `${Math.min(100, value / 50 * 100)}%`;
+        bar.className = `bar-fill${value >= 40 ? " danger" : value >= 39 ? " warning" : ""}`;
+      }
+
+      function render(result) {
+        latestResult = result;
+        document.getElementById("required-credit").textContent = compactWon(result.required_credit_loan_krw);
+        document.getElementById("card-total").textContent = compactWon(result.card_payment_total_krw);
+        document.getElementById("card-monthly-note").textContent = `월 ${compactWon(result.card_monthly_payment_krw)}`;
+        document.getElementById("stress-dsr").textContent = `${result.stress_dsr_percent}%`;
+        document.getElementById("stress-rate-note").textContent = `주담대 심사금리 ${result.mortgage_stress_rate_percent}%`;
+        document.getElementById("monthly-outflow").textContent = compactWon(result.monthly_outflow_during_card_installment_krw);
+        document.getElementById("contract-dsr").textContent = `${result.contract_dsr_percent}%`;
+        document.getElementById("stress-dsr-row").textContent = `${result.stress_dsr_percent}%`;
+        setBar("contract-bar", result.contract_dsr_percent);
+        setBar("stress-bar", result.stress_dsr_percent);
+
+        const values = {
+          "total-required": result.total_required_krw,
+          "acquisition-tax": result.acquisition_tax_krw,
+          "brokerage": result.brokerage_krw,
+          "card-shift": result.card_payment_total_krw,
+          "cash-at-closing": result.cash_required_at_closing_krw,
+          "available-cash": result.available_cash_krw,
+          "cash-surplus": result.cash_surplus_krw,
+          "mortgage-monthly": result.mortgage_monthly_payment_krw,
+          "credit-monthly": result.credit_monthly_payment_krw,
+          "family-interest": result.family_monthly_interest_krw,
+          "family-reserve": result.family_principal_reserve_krw,
+          "card-monthly": result.card_monthly_payment_krw,
+          "monthly-total": result.monthly_outflow_during_card_installment_krw
+        };
+        Object.entries(values).forEach(([id, value]) => document.getElementById(id).textContent = won(value));
+        document.getElementById("tax-card-copy").textContent = won(result.acquisition_tax_krw);
+        document.getElementById("broker-card-copy").textContent = won(result.brokerage_krw);
+
+        const warningList = document.getElementById("warning-list");
+        warningList.innerHTML = "";
+        result.warnings.forEach(message => {
+          const item = document.createElement("div");
+          item.className = `warning-item${result.stress_dsr_percent >= 40 ? " danger" : ""}`;
+          item.textContent = message;
+          warningList.appendChild(item);
+        });
+        document.getElementById("status-line").textContent = `계산 완료 · 전세 순자금 ${compactWon(result.lease_equity_krw)}`;
+        document.getElementById("status-line").className = "status-line";
+        updatePriceButtons();
+      }
+
+      async function calculate() {
+        clearTimeout(debounceTimer);
+        try {
+          const response = await fetch("/api/financing/calculate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(readForm())
+          });
+          if (!response.ok) throw new Error("입력값을 확인해 주세요.");
+          render(await response.json());
+          localStorage.setItem("home-decision-financing", JSON.stringify(readForm()));
+        } catch (error) {
+          const status = document.getElementById("status-line");
+          status.textContent = error.message;
+          status.className = "status-line error";
+        }
+      }
+
+      function queueCalculate() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(calculate, 180);
+      }
+
+      function updatePriceButtons() {
+        const price = Math.round(Number(document.getElementById("purchase_price_krw").value) * 10000);
+        document.querySelectorAll(".price-button").forEach(button => {
+          button.classList.toggle("active", Number(button.dataset.price) === price);
+        });
+      }
+
+      function exportCsv() {
+        if (!latestResult) return;
+        const rows = [["항목", "값"], ...Object.entries(latestResult)
+          .filter(([, value]) => ["number", "boolean", "string"].includes(typeof value))];
+        const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
+        const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "financing-scenario.csv";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      async function initialize() {
+        const response = await fetch("/api/financing/defaults");
+        defaults = await response.json();
+        const saved = localStorage.getItem("home-decision-financing");
+        setForm(saved ? { ...defaults, ...JSON.parse(saved) } : defaults);
+        fieldIds.forEach(id => document.getElementById(id).addEventListener("input", queueCalculate));
+        document.querySelectorAll(".price-button").forEach(button => button.addEventListener("click", () => {
+          document.getElementById("purchase_price_krw").value = Number(button.dataset.price) / 10000;
+          calculate();
+        }));
+        document.getElementById("reset-button").addEventListener("click", () => {
+          localStorage.removeItem("home-decision-financing");
+          setForm(defaults);
+          calculate();
+        });
+        document.getElementById("export-button").addEventListener("click", exportCsv);
+        calculate();
+      }
+      initialize();
+    </script>
+  </body>
+</html>

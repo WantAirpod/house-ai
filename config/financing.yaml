@@ -1,94 +1,89 @@
 currency: KRW
+as_of: "2026-06-28"
+target_move_in: "2026-11"
 
-plans:
-  - id: realistic
-    name: "현실적인 플랜"
-    total_budget_krw: 920000000
-    monthly_payment_krw: 4353324
-    description: "현금 2.2억, 주담대 6억, 신용대출 0.5억, 양가 차용 0.5억 기준"
-    components:
-      - type: cash
-        name: "현금"
-        amount_krw: 220000000
-        interest_rate_percent: 0
-        monthly_payment_krw: 0
-      - type: mortgage
-        name: "주담대"
-        amount_krw: 600000000
-        interest_rate_percent: 4.5
-        monthly_payment_krw: 3040112
-      - type: credit_loan
-        name: "신용대출"
-        amount_krw: 50000000
-        interest_rate_percent: 4.4
-        monthly_payment_krw: 929879
-        memo: "최대 1.9억까지 가능하다고 들었으나 보수적으로 0.5억 반영"
-      - type: family_loan
-        name: "양가 차용"
-        amount_krw: 50000000
-        interest_rate_percent: 4.6
-        monthly_principal_krw: 0
-        monthly_interest_krw: 383333
-        monthly_payment_krw: 383333
+household_income:
+  husband_gross_annual_krw: 100000000
+  wife_gross_annual_krw: 50000000
+  combined_gross_annual_krw: 150000000
 
-  - id: expanded_living_stability
-    name: "생안자 활용 플랜"
-    total_budget_krw: 1050000000
-    monthly_payment_krw: 6405282
-    description: "생활안정자금대출/부모님 찬스까지 활용하는 확장 플랜"
-    components:
-      - type: cash
-        name: "현금"
-        amount_krw: 220000000
-        interest_rate_percent: 0
-        monthly_payment_krw: 0
-      - type: mortgage
-        name: "주담대"
-        amount_krw: 600000000
-        interest_rate_percent: 5.0
-        monthly_principal_krw: 820000
-        monthly_interest_krw: 2230000
-        monthly_payment_krw: 3220930
-      - type: credit_loan
-        name: "신용대출"
-        amount_krw: 130000000
-        interest_rate_percent: 4.4
-        monthly_principal_krw: 750000
-        monthly_interest_krw: 180000
-        monthly_payment_krw: 2417686
-        memo: "최대 1.9억까지 가능하다고 들었으나 1.3억 반영"
-      - type: family_loan
-        name: "차용"
-        amount_krw: 50000000
-        interest_rate_percent: 4.6
-        monthly_principal_krw: 0
-        monthly_interest_krw: 383333
-        monthly_payment_krw: 383333
-      - type: family_loan
-        name: "차용2"
-        amount_krw: 50000000
-        interest_rate_percent: 4.6
-        monthly_principal_krw: 0
-        monthly_interest_krw: 383333
-        monthly_payment_krw: 383333
+current_lease:
+  deposit_krw: 400000000
+  jeonse_loan_balance_krw: 300000000
+  net_equity_krw: 100000000
+  settlement_plan: "11월 보증금 반환과 동시에 전세대출 상환 후 순자금 투입"
 
-decision_bands:
-  - id: comfortable
-    name: "현실 플랜 적합"
-    max_price_krw: 920000000
-    recommendation: "우선 검토"
-  - id: stretch
-    name: "확장 플랜 필요"
-    min_price_krw: 920000001
-    max_price_krw: 1050000000
-    recommendation: "월 부담과 호가 협상 여지 확인"
-  - id: over_budget
-    name: "예산 초과"
-    min_price_krw: 1050000001
-    recommendation: "제외 또는 급매만 관찰"
+cash_assumptions:
+  stated_cash_krw: 280000000
+  conservative_case: "전세 순자금 1억원이 현금 2.8억원에 포함"
+  upside_case: "전세 순자금 1억원이 현금 2.8억원과 별도"
+  separate_emergency_reserve_krw: 0
 
-rules:
-  - "9.2억 이하는 현실적인 플랜으로 우선 검토한다."
-  - "9.2억 초과 10.5억 이하는 생안자/부모님 찬스까지 쓰는 확장 플랜으로만 가능하다."
-  - "10.5억 초과는 원칙적으로 제외한다."
-  - "월 납입 640만원대 플랜은 장기 지속 가능성을 별도 검토한다."
+recommended_plan:
+  id: giheung_stable_990m
+  name: "기흥 9.9억원 안정형"
+  purchase_price_krw: 990000000
+  acquisition_tax_and_education_tax_krw: 32670000
+  brokerage_max_including_vat_krw: 5445000
+  registration_and_legal_estimate_krw: 2000000
+  total_required_krw: 1030115000
+  components:
+    - type: cash
+      name: "현금"
+      amount_krw: 280000000
+    - type: mortgage
+      name: "주담대"
+      amount_krw: 600000000
+      interest_rate_percent: 5.0
+      term_years: 30
+      repayment: equal_principal_and_interest
+      preferred_rate_type: fully_fixed_or_five_year_periodic
+      monthly_payment_krw: 3220930
+    - type: credit_loan
+      name: "신용대출"
+      amount_krw: 40000000
+      interest_rate_percent: 6.0
+      term_years: 7
+      repayment: equal_principal_and_interest
+      monthly_payment_krw: 584342
+    - type: family_loan
+      name: "부모 차용"
+      amount_krw: 70000000
+      interest_rate_percent: 4.6
+      term_years: 10
+      repayment: interest_only_with_principal_sinking_fund
+      monthly_interest_krw: 268333
+      monthly_principal_sinking_fund_krw: 583333
+  card_plan:
+    acquisition_tax_krw: 32670000
+    brokerage_krw: 5445000
+    registration_and_legal_krw: 2000000
+    total_krw: 40115000
+    installment_months: 12
+    assumed_interest_rate_percent: 0
+    monthly_payment_krw: 3342917
+  monthly_debt_payment_krw: 4073605
+  monthly_effective_housing_outflow_range_krw:
+    min: 7999855
+    max: 8199855
+  simple_contract_rate_dsr_percent: 30.4
+  estimated_five_year_periodic_stress_dsr_percent: 34.1
+
+conditional_upper_plan:
+  purchase_price_krw: 1000000000
+  total_required_krw: 1040500000
+  required_credit_loan_krw: 90500000
+  condition: "장기고정형 또는 5년 주기형 주담대와 7년 이상 신용대출 사전승인"
+  estimated_five_year_periodic_stress_dsr_percent: 40.0
+
+decision_rules:
+  - "기본 목표 매매가는 9.9억원이다."
+  - "10억원은 은행 스트레스 DSR 사전심사 통과 시에만 허용한다."
+  - "10.1억원 이상은 추가 현금 3천만~5천만원 또는 확정 대출승인 없이는 제외한다."
+  - "내부 스트레스 DSR 39% 미만은 안정형, 39~40%는 경계형, 40% 초과는 제외한다."
+  - "카드론, 현금서비스, 리볼빙으로 계약금·잔금·보증금 반환 지연을 충당하지 않는다."
+  - "카드 결제한 취득세·중개보수·법무비는 신용대출 필요액에서 제외하되 카드 월 납입에는 포함한다."
+
+# TODO: 전세 순자금 1억원이 현금 2.8억원에 포함되는지 확정한다.
+# TODO: 실제 기존 부채와 마이너스통장 한도를 반영해 은행별 DSR을 갱신한다.
+# TODO: 부모 거래은행에서 생활안정자금 재대여 허용 여부를 서면 확인한다.
