@@ -22,6 +22,16 @@ def test_financing_calculator_page() -> None:
     assert "생애최초 취득세 감면 가정" in response.text
 
 
+def test_financing_plan_page() -> None:
+    client = TestClient(create_app())
+
+    response = client.get("/financing-plan")
+
+    assert response.status_code == 200
+    assert "월 741만원의 원인" in response.text
+    assert "추천 자금 플랜" in response.text
+
+
 def test_financing_calculation_api_moves_card_costs_out_of_credit() -> None:
     client = TestClient(create_app())
 

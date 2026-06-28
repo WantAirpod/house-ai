@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>추천 자금 플랜 | home-decision-ai</title>
+    <style>
+      :root {
+        --bg: #f4f5f2;
+        --surface: #fff;
+        --muted-surface: #eef1ed;
+        --ink: #17201b;
+        --muted: #657068;
+        --line: #d7ddd8;
+        --accent: #176b48;
+        --accent-soft: #e7f2eb;
+        --warning: #9a5800;
+        --warning-soft: #fff3df;
+        --danger: #a13232;
+        --danger-soft: #fbeaea;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+      button, input { font: inherit; }
+      a { color: var(--accent); }
+      header { border-bottom: 1px solid var(--line); background: var(--surface); }
+      .header-inner, main { width: min(1320px, calc(100% - 32px)); margin: 0 auto; }
+      .header-inner {
+        min-height: 68px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      h1 { margin: 0; font-size: 22px; }
+      h2 { margin: 0 0 14px; font-size: 17px; }
+      h3 { margin: 0 0 8px; font-size: 14px; }
+      p { margin: 0; line-height: 1.65; }
+      button {
+        min-height: 38px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        cursor: pointer;
+      }
+      main { padding: 24px 0 52px; }
+      .summary {
+        display: grid;
+        grid-template-columns: 1.25fr .75fr;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+      .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+      .panel-body { padding: 20px; }
+      .answer { border-left: 4px solid var(--danger); }
+      .answer strong { display: block; margin-bottom: 7px; font-size: 20px; }
+      .answer .amount { color: var(--danger); }
+      .inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+      .input-wrap { position: relative; }
+      input {
+        width: 100%;
+        height: 40px;
+        padding: 0 48px 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--ink);
+      }
+      .unit { position: absolute; top: 11px; right: 10px; color: var(--muted); font-size: 12px; }
+      .recommendation { margin-bottom: 18px; border-color: #9bbbaa; }
+      .recommendation .panel-body { background: var(--accent-soft); }
+      .recommendation ol { margin: 12px 0 0; padding-left: 20px; line-height: 1.7; }
+      .table-panel { overflow: hidden; margin-bottom: 18px; }
+      .table-heading { padding: 17px 20px; border-bottom: 1px solid var(--line); }
+      .table-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; min-width: 940px; }
+      th, td { padding: 12px 10px; border-bottom: 1px solid #e8ebe8; text-align: right; font-size: 13px; }
+      th { color: var(--muted); background: var(--muted-surface); font-weight: 650; }
+      th:first-child, td:first-child { padding-left: 20px; text-align: left; }
+      tr:last-child td { border-bottom: 0; }
+      .status { display: inline-block; padding: 4px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+      .status.ok { color: var(--accent); background: var(--accent-soft); }
+      .status.warn { color: var(--warning); background: var(--warning-soft); }
+      .status.danger { color: var(--danger); background: var(--danger-soft); }
+      .details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+      .details ul { margin: 8px 0 0; padding-left: 18px; color: #3f4942; line-height: 1.65; font-size: 13px; }
+      .source-list { margin-top: 14px; color: var(--muted); font-size: 12px; }
+      .note { color: var(--muted); font-size: 12px; }
+      @media (max-width: 860px) {
+        .summary, .details { grid-template-columns: 1fr; }
+        .header-inner { align-items: stretch; flex-direction: column; padding: 14px 0; }
+        .header-inner button { width: 100%; }
+      }
+      @media (max-width: 560px) {
+        .header-inner, main { width: min(100% - 20px, 1320px); }
+        .inputs { grid-template-columns: 1fr; }
+        h1 { font-size: 19px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <h1>추천 자금 플랜</h1>
+        <button type="button" onclick="location.href='/financing-calculator'">계산기로 돌아가기</button>
+      </div>
+    </header>
+    <main>
+      <section class="summary">
+        <div class="panel answer">
+          <div class="panel-body">
+            <strong>월 741만원의 원인</strong>
+            <p><span class="amount" id="current-outflow">-</span>은 주담대·신용대출·부모 차용 이자에 거래비 카드 할부를 더한 금액입니다. 현재 설정이 12개월이면 이 부담도 첫 12개월 동안 이어지고, 이후에는 <span id="after-card-outflow">-</span>으로 내려갑니다.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-body">
+            <h2>가계 기준</h2>
+            <div class="inputs">
+              <div>
+                <label for="monthly-income">월 실수령</label>
+                <div class="input-wrap"><input id="monthly-income" type="number" min="0" step="10" value="800"><span class="unit">만원</span></div>
+              </div>
+              <div>
+                <label for="living-cost">월 필수 생활비</label>
+                <div class="input-wrap"><input id="living-cost" type="number" min="0" step="10" value="300"><span class="unit">만원</span></div>
+              </div>
+              <div>
+                <label for="minimum-buffer">월 최소 잔여자금</label>
+                <div class="input-wrap"><input id="minimum-buffer" type="number" min="0" step="10" value="100"><span class="unit">만원</span></div>
+              </div>
+              <div>
+                <label for="target-price">협상 목표 매매가</label>
+                <div class="input-wrap"><input id="target-price" type="number" min="0" step="100" value="94500"><span class="unit">만원</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel recommendation">
+        <div class="panel-body">
+          <h2>결론</h2>
+          <p id="recommendation-summary">시나리오를 계산하는 중입니다.</p>
+          <ol>
+            <li>거래비 약 4천만원을 12개월 급여로 갚는 현재 구조는 제외합니다.</li>
+            <li>9.9억원을 유지하려면 거래비용을 잔금 전에 별도 현금으로 확보하는 안을 우선합니다.</li>
+            <li>추가 현금이 없다면 매매가를 낮춰 거래비까지 포함한 총 신용대출을 통제합니다.</li>
+            <li>장기 신용대출안은 은행의 스트레스 DSR 사전심사를 통과한 경우에만 사용합니다.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="table-heading">
+          <h2>시나리오 비교</h2>
+          <p class="note">계산기의 저장된 입력값을 기준으로 자동 계산합니다. 카드 할부 가능 기간과 금리는 카드사 확인이 필요합니다.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>시나리오</th><th>기간/조건</th><th>필요 신용대출</th><th>추가 현금</th><th>월 주거부채</th><th>생활비 후 잔여</th><th>스트레스 DSR</th><th>판정</th>
+              </tr>
+            </thead>
+            <tbody id="scenario-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="details">
+        <div class="panel"><div class="panel-body">
+          <h3>추천 1순위</h3>
+          <ul>
+            <li>9.9억원 유지 시 거래비 약 4천만원을 별도 현금으로 준비</li>
+            <li>카드 할부는 결제 편의로만 사용하고 급여 상환재원으로 보지 않기</li>
+            <li>월 부채 약 407만원 수준으로 낮춘 뒤 생활비 예산 확정</li>
+          </ul>
+        </div></div>
+        <div class="panel"><div class="panel-body">
+          <h3>추가 현금이 없다면</h3>
+          <ul>
+            <li>협상 목표가를 입력해 총 필요자금과 DSR 재계산</li>
+            <li>기본 예시 9.45억원은 거래비를 현금 결제해도 신용대출 약 3,338만원</li>
+            <li>9.9억원 고수와 4천만원 가격 인하는 월 부담보다 승인 여력 차이가 큼</li>
+          </ul>
+        </div></div>
+        <div class="panel"><div class="panel-body">
+          <h3>계약 전 확인</h3>
+          <ul>
+            <li>주담대 6억원과 신용대출을 동일 조건으로 은행 2곳 이상 사전심사</li>
+            <li>전세 순자금 1억원이 보유현금 2.8억원에 포함되는지 확정</li>
+            <li>부모 차용 만기 원금 7천만원의 상환재원 별도 기록</li>
+          </ul>
+        </div></div>
+      </section>
+      <p class="source-list">정책 참고: <a href="https://www.fsc.go.kr/po010106/85824" target="_blank" rel="noreferrer">금융위원회 스트레스 DSR</a> · <a href="https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000016&nttId=123270" target="_blank" rel="noreferrer">행정안전부 생애최초 취득세 감면 운영기준</a></p>
+    </main>
+    <script>
+      const won = value => `${Math.round(value).toLocaleString("ko-KR")}원`;
+      const compactWon = value => {
+        const amount = Math.round(value);
+        if (Math.abs(amount) >= 100000000) {
+          return `${(amount / 100000000).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}억`;
+        }
+        return `${Math.round(amount / 10000).toLocaleString("ko-KR")}만원`;
+      };
+      const inputWon = id => Math.round(Number(document.getElementById(id).value || 0) * 10000);
+
+      async function calculate(payload) {
+        const response = await fetch("/api/financing/calculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error("시나리오 계산에 실패했습니다.");
+        return response.json();
+      }
+
+      function risk(result, remaining, minimumBuffer) {
+        if (result.stress_dsr_percent >= result.dsr_limit_percent || remaining < 0) {
+          return ["제외", "danger"];
+        }
+        if (remaining < minimumBuffer || result.stress_dsr_percent >= result.dsr_warning_percent) {
+          return ["주의", "warn"];
+        }
+        return ["검토 가능", "ok"];
+      }
+
+      async function render() {
+        const defaults = await (await fetch("/api/financing/defaults")).json();
+        const saved = JSON.parse(localStorage.getItem("home-decision-financing") || "{}");
+        const base = { ...defaults, ...saved };
+        const monthlyIncome = inputWon("monthly-income");
+        const livingCost = inputWon("living-cost");
+        const minimumBuffer = inputWon("minimum-buffer");
+        const targetPrice = inputWon("target-price");
+
+        const current = await calculate(base);
+        const scenarios = [
+          {
+            name: "현재 카드 구조",
+            condition: `${base.card_installment_months}개월`,
+            payload: base,
+            extraCash: 0
+          },
+          {
+            name: "카드 24개월 참고",
+            condition: "24개월 가능 시",
+            payload: { ...base, card_installment_months: 24 },
+            extraCash: 0
+          },
+          {
+            name: "거래비 장기대출",
+            condition: "은행 승인 필요",
+            payload: { ...base, card_acquisition_tax: false, card_brokerage: false, card_legal_cost: false },
+            extraCash: 0
+          },
+          {
+            name: "거래비 별도 현금",
+            condition: "잔금 전 확보",
+            payload: {
+              ...base,
+              cash_krw: base.cash_krw + current.card_payment_total_krw,
+              card_acquisition_tax: false,
+              card_brokerage: false,
+              card_legal_cost: false
+            },
+            extraCash: current.card_payment_total_krw
+          },
+          {
+            name: "협상 목표가",
+            condition: compactWon(targetPrice),
+            payload: {
+              ...base,
+              purchase_price_krw: targetPrice,
+              card_acquisition_tax: false,
+              card_brokerage: false,
+              card_legal_cost: false
+            },
+            extraCash: 0
+          }
+        ];
+
+        const results = await Promise.all(scenarios.map(item => calculate(item.payload)));
+        const rows = scenarios.map((scenario, index) => {
+          const result = results[index];
+          const remaining = monthlyIncome - livingCost - result.monthly_outflow_during_card_installment_krw;
+          const [label, className] = risk(result, remaining, minimumBuffer);
+          return `<tr><td><strong>${scenario.name}</strong></td><td>${scenario.condition}</td>` +
+            `<td>${compactWon(result.required_credit_loan_krw)}</td><td>${compactWon(scenario.extraCash)}</td>` +
+            `<td>${compactWon(result.monthly_outflow_during_card_installment_krw)}</td>` +
+            `<td>${compactWon(remaining)}</td><td>${result.stress_dsr_percent}%</td>` +
+            `<td><span class="status ${className}">${label}</span></td></tr>`;
+        }).join("");
+        document.getElementById("scenario-rows").innerHTML = rows;
+        document.getElementById("current-outflow").textContent = compactWon(current.monthly_outflow_during_card_installment_krw);
+        document.getElementById("after-card-outflow").textContent = compactWon(current.monthly_debt_payment_krw);
+
+        const currentRemaining = monthlyIncome - livingCost - current.monthly_outflow_during_card_installment_krw;
+        const cashResult = results[3];
+        const cashRemaining = monthlyIncome - livingCost - cashResult.monthly_outflow_during_card_installment_krw;
+        document.getElementById("recommendation-summary").textContent =
+          `현재 구조는 생활비 반영 후 월 ${compactWon(currentRemaining)}이 남습니다. ` +
+          `거래비 ${compactWon(current.card_payment_total_krw)}를 별도 현금으로 확보하면 월 부채는 ` +
+          `${compactWon(cashResult.monthly_outflow_during_card_installment_krw)}, 생활비 후 잔여는 ` +
+          `${compactWon(cashRemaining)}입니다. 추가 현금 확보가 어렵다면 협상 목표가 시나리오를 기준으로 판단해야 합니다.`;
+      }
+
+      let timer = null;
+      document.querySelectorAll("input").forEach(input => input.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => render().catch(showError), 180);
+      }));
+      function showError(error) {
+        document.getElementById("recommendation-summary").textContent = error.message;
+      }
+      render().catch(showError);
+    </script>
+  </body>
+</html>

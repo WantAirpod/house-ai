@@ -200,6 +200,11 @@ def create_app() -> FastAPI:
         )
         return HTMLResponse(template_path.read_text(encoding="utf-8"))
 
+    @app.get("/financing-plan", response_class=HTMLResponse)
+    def financing_plan() -> HTMLResponse:
+        template_path = Path(__file__).resolve().parents[1] / "templates" / "financing_plan.html"
+        return HTMLResponse(template_path.read_text(encoding="utf-8"))
+
     @app.get("/api/financing/defaults")
     def financing_defaults() -> dict[str, object]:
         return FinancingCalculatorRequest().model_dump()
