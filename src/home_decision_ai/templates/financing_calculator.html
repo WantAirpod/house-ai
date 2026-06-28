@@ -340,6 +340,10 @@
             </div>
             <div class="toggle-list">
               <div class="toggle-row">
+                <div class="toggle-copy"><strong>DSR 초과 시 매매가 자동 조정</strong><span>설정한 DSR 한도에 맞는 최대 매매가로 낮춤</span></div>
+                <input id="dsr_auto_limit_enabled" type="checkbox" checked>
+              </div>
+              <div class="toggle-row">
                 <div class="toggle-copy"><strong>생애최초 취득세 감면 가정</strong><span>본인·배우자 모두 과거 주택 소유 이력이 없을 때 선택</span></div>
                 <input id="first_time_homebuyer_eligible" type="checkbox">
               </div>
@@ -361,6 +365,19 @@
           <div class="result-body">
             <div class="dsr-row"><span>계약금리 DSR</span><div class="bar"><div class="bar-fill" id="contract-bar"></div></div><strong id="contract-dsr">-</strong></div>
             <div class="dsr-row"><span>스트레스 DSR</span><div class="bar"><div class="bar-fill" id="stress-bar"></div></div><strong id="stress-dsr-row">-</strong></div>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>DSR 한도 가이드</th><th>금액</th></tr></thead>
+                <tbody>
+                  <tr><td>DSR 기준 최대 신용대출</td><td id="max-credit-by-dsr">-</td></tr>
+                  <tr><td>현재 신용대출 초과액</td><td id="credit-excess">-</td></tr>
+                  <tr><td>대신 추가할 현금</td><td id="cash-needed-by-dsr">-</td></tr>
+                  <tr><td>DSR 기준 최대 매매가</td><td id="max-price-by-dsr">-</td></tr>
+                  <tr><td>내려야 할 매매가</td><td id="price-excess">-</td></tr>
+                </tbody>
+              </table>
+            </div>
 
             <div class="table-wrap">
               <table>
@@ -425,6 +442,7 @@
       let defaults = null;
       let latestResult = null;
       let debounceTimer = null;
+      let lastAutoAdjustment = null;
       const storageSchemaVersion = 2;
 
       const won = value => `${Math.round(value).toLocaleString("ko-KR")}원`;
@@ -497,6 +515,11 @@
           "cash-at-closing": result.cash_required_at_closing_krw,
           "available-cash": result.available_cash_krw,
           "cash-surplus": result.cash_surplus_krw,
+          "max-credit-by-dsr": result.max_credit_loan_by_dsr_krw,
+          "credit-excess": result.credit_loan_excess_krw,
+          "cash-needed-by-dsr": result.credit_loan_excess_krw,
+          "max-price-by-dsr": result.max_purchase_price_by_dsr_krw,
+          "price-excess": result.purchase_price_excess_krw,
           "mortgage-monthly": result.mortgage_monthly_payment_krw,
           "credit-monthly": result.credit_monthly_payment_krw,
           "family-payment": result.family_monthly_payment_krw,
@@ -517,7 +540,9 @@
           item.textContent = message;
           warningList.appendChild(item);
         });
-        document.getElementById("status-line").textContent = `계산 완료 · 전세 순자금 ${compactWon(result.lease_equity_krw)}`;
+        document.getElementById("status-line").textContent = lastAutoAdjustment ||
+          `계산 완료 · 전세 순자금 ${compactWon(result.lease_equity_krw)}`;
+        lastAutoAdjustment = null;
         document.getElementById("status-line").className = "status-line";
         updatePriceButtons();
       }
@@ -531,7 +556,22 @@
             body: JSON.stringify(readForm())
           });
           if (!response.ok) throw new Error("입력값을 확인해 주세요.");
-          render(await response.json());
+          const result = await response.json();
+          const autoLimit = document.getElementById("dsr_auto_limit_enabled").checked;
+          if (
+            autoLimit &&
+            result.dsr_limit_exceeded &&
+            result.max_purchase_price_by_dsr_krw < readForm().purchase_price_krw
+          ) {
+            const before = readForm().purchase_price_krw;
+            document.getElementById("purchase_price_krw").value =
+              Math.floor(result.max_purchase_price_by_dsr_krw / 10000);
+            lastAutoAdjustment =
+              `DSR ${result.dsr_limit_percent}% 한도 적용 · 매매가 ${compactWon(before)} → ` +
+              `${compactWon(result.max_purchase_price_by_dsr_krw)}`;
+            return calculate();
+          }
+          render(result);
           localStorage.setItem("home-decision-financing", JSON.stringify({
             ...readForm(),
             _schema_version: storageSchemaVersion
@@ -578,6 +618,7 @@
         delete saved._schema_version;
         setForm({ ...defaults, ...saved });
         fieldIds.forEach(id => document.getElementById(id).addEventListener("input", queueCalculate));
+        document.getElementById("dsr_auto_limit_enabled").addEventListener("input", queueCalculate);
         document.querySelectorAll(".price-button").forEach(button => button.addEventListener("click", () => {
           document.getElementById("purchase_price_krw").value = Number(button.dataset.price) / 10000;
           calculate();

@@ -98,6 +98,73 @@ def annuity_payment(principal_krw: float, annual_rate_percent: float, months: in
     return principal_krw * monthly_rate * factor / (factor - 1)
 
 
+def principal_for_annuity_payment(
+    monthly_payment_krw: float, annual_rate_percent: float, months: int
+) -> float:
+    if monthly_payment_krw <= 0:
+        return 0.0
+    if months <= 0:
+        raise ValueError("months must be positive")
+    monthly_rate = annual_rate_percent / 100 / 12
+    if monthly_rate == 0:
+        return monthly_payment_krw * months
+    factor = (1 + monthly_rate) ** months
+    return monthly_payment_krw * (factor - 1) / (monthly_rate * factor)
+
+
+def _required_credit_for_price(values: FinancingScenarioInput, purchase_price_krw: int) -> int:
+    gross_tax = round(purchase_price_krw * values.acquisition_tax_rate_percent / 100)
+    discount_applied = (
+        values.first_time_homebuyer_eligible
+        and purchase_price_krw <= values.first_time_homebuyer_price_limit_krw
+    )
+    acquisition_discount = (
+        min(
+            round(
+                gross_tax / (1 + values.local_education_tax_discount_ratio_percent / 100)
+            ),
+            values.first_time_acquisition_tax_discount_limit_krw,
+        )
+        if discount_applied
+        else 0
+    )
+    education_discount = round(
+        acquisition_discount * values.local_education_tax_discount_ratio_percent / 100
+    )
+    net_tax = max(0, gross_tax - acquisition_discount - education_discount)
+    brokerage = round(purchase_price_krw * values.brokerage_rate_percent / 100)
+    card_ratio = values.card_payment_ratio_percent / 100
+    card_total = sum(
+        (
+            round(net_tax * card_ratio) if values.card_acquisition_tax else 0,
+            round(brokerage * card_ratio) if values.card_brokerage else 0,
+            round(values.legal_cost_krw * card_ratio) if values.card_legal_cost else 0,
+        )
+    )
+    transaction_cost = net_tax + brokerage + values.legal_cost_krw
+    lease_equity = values.lease_deposit_krw - values.lease_loan_krw
+    available_cash = values.cash_krw + (
+        0 if values.lease_equity_included_in_cash else lease_equity
+    )
+    non_credit_funds = available_cash + values.mortgage_amount_krw + values.family_loan_amount_krw
+    cash_required = purchase_price_krw + transaction_cost - card_total
+    return max(0, round(cash_required - non_credit_funds))
+
+
+def _maximum_purchase_price(values: FinancingScenarioInput, max_credit_krw: int) -> int:
+    low = 0
+    high = max(values.purchase_price_krw * 2, 2_000_000_000)
+    while _required_credit_for_price(values, high) <= max_credit_krw and high < 20_000_000_000:
+        high *= 2
+    while low < high:
+        middle = (low + high + 1) // 2
+        if _required_credit_for_price(values, middle) <= max_credit_krw:
+            low = middle
+        else:
+            high = middle - 1
+    return low
+
+
 def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, object]:
     numeric_values = [
         values.purchase_price_krw,
@@ -223,6 +290,37 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         / values.combined_gross_income_krw
         * 100
     )
+    dsr_limit_exceeded = stress_dsr > values.dsr_limit_percent
+    monthly_dsr_capacity = values.combined_gross_income_krw * values.dsr_limit_percent / 100 / 12
+    monthly_credit_capacity = max(0, monthly_dsr_capacity - mortgage_stress_payment)
+    base_credit_capacity = principal_for_annuity_payment(
+        monthly_credit_capacity, values.credit_rate_percent, credit_months
+    )
+    stressed_credit_capacity = principal_for_annuity_payment(
+        monthly_credit_capacity,
+        values.credit_rate_percent + values.credit_stress_rate_percent,
+        credit_months,
+    )
+    threshold_supported = (
+        annuity_payment(
+            values.credit_stress_threshold_krw,
+            values.credit_rate_percent,
+            credit_months,
+        )
+        <= monthly_credit_capacity
+    )
+    max_credit_loan = max(
+        min(base_credit_capacity, values.credit_stress_threshold_krw),
+        values.credit_stress_threshold_krw if threshold_supported else 0,
+        stressed_credit_capacity
+        if stressed_credit_capacity > values.credit_stress_threshold_krw
+        else 0,
+    )
+    # Keep a small won-level margin so floating-point inversion never lands just above the limit.
+    max_credit_loan_krw = max(0, int(max_credit_loan) - 1_000)
+    credit_loan_excess = max(0, required_credit_loan - max_credit_loan_krw)
+    max_purchase_price = _maximum_purchase_price(values, max_credit_loan_krw)
+    purchase_price_excess = max(0, values.purchase_price_krw - max_purchase_price)
     monthly_debt_payment = mortgage_payment + credit_payment + family_monthly_payment
     monthly_outflow_during_card_installment = (
         monthly_debt_payment + family_principal_reserve + card_payment
@@ -230,9 +328,9 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     total_required = values.purchase_price_krw + total_transaction_cost
 
     warnings: list[str] = []
-    if stress_dsr >= values.dsr_limit_percent:
+    if dsr_limit_exceeded:
         warnings.append(
-            f"스트레스 DSR이 설정 한도 {values.dsr_limit_percent:g}% 이상입니다. "
+            f"스트레스 DSR이 설정 한도 {values.dsr_limit_percent:g}%를 초과했습니다. "
             "대출 승인 가능성이 낮습니다."
         )
     elif stress_dsr >= values.dsr_warning_percent:
@@ -244,6 +342,11 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         warnings.append(
             f"신용대출이 설정 기준 {values.credit_stress_threshold_krw:,}원을 초과해 "
             "신용대출 스트레스 금리를 반영했습니다."
+        )
+    if credit_loan_excess > 0:
+        warnings.append(
+            f"DSR 한도에 맞추려면 신용대출을 약 {credit_loan_excess:,}원 줄여야 합니다. "
+            "같은 금액의 현금을 추가하거나 매매가를 낮춰야 합니다."
         )
     if values.first_time_homebuyer_eligible and not first_time_discount_applied:
         warnings.append("매매가가 12억원을 초과해 생애최초 취득세 감면을 적용하지 않았습니다.")
@@ -290,6 +393,10 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "card_payment_total_krw": round(card_payment_total),
         "cash_required_at_closing_krw": round(cash_required_at_closing),
         "required_credit_loan_krw": round(required_credit_loan),
+        "max_credit_loan_by_dsr_krw": max_credit_loan_krw,
+        "credit_loan_excess_krw": round(credit_loan_excess),
+        "max_purchase_price_by_dsr_krw": round(max_purchase_price),
+        "purchase_price_excess_krw": round(purchase_price_excess),
         "cash_surplus_krw": round(cash_surplus),
         "mortgage_monthly_payment_krw": round(mortgage_payment),
         "credit_monthly_payment_krw": round(credit_payment),
@@ -309,6 +416,7 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         ),
         "contract_dsr_percent": round(contract_dsr, 1),
         "stress_dsr_percent": round(stress_dsr, 1),
+        "dsr_limit_exceeded": dsr_limit_exceeded,
         "mortgage_stress_rate_percent": round(mortgage_stress_rate, 2),
         "credit_stress_rate_percent": round(credit_stress_rate, 2),
         "credit_stress_applied": credit_stress_applied,

@@ -5,6 +5,7 @@ from home_decision_ai.models.financing import (
     annuity_payment,
     calculate_financing_scenario,
     classify_price,
+    principal_for_annuity_payment,
 )
 
 
@@ -30,6 +31,14 @@ def test_annuity_payment() -> None:
     payment = annuity_payment(600_000_000, 5.0, 30 * 12)
 
     assert payment == pytest.approx(3_220_930, abs=1)
+
+
+def test_annuity_payment_can_be_inverted() -> None:
+    payment = annuity_payment(80_000_000, 6.0, 7 * 12)
+
+    principal = principal_for_annuity_payment(payment, 6.0, 7 * 12)
+
+    assert principal == pytest.approx(80_000_000, abs=1)
 
 
 def test_card_costs_are_removed_from_required_credit_loan() -> None:
@@ -137,6 +146,21 @@ def test_policy_thresholds_are_configurable() -> None:
     assert result["credit_stress_applied"] is True
     assert result["dsr_warning_percent"] == 20
     assert result["dsr_limit_percent"] == 25
+
+
+def test_dsr_limit_reports_maximum_credit_and_purchase_price() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            purchase_price_krw=1_030_000_000,
+            card_payment_ratio_percent=0,
+        )
+    )
+
+    assert result["stress_dsr_percent"] > 40
+    assert result["credit_loan_excess_krw"] > 0
+    assert result["max_credit_loan_by_dsr_krw"] < result["required_credit_loan_krw"]
+    assert result["max_purchase_price_by_dsr_krw"] < 1_030_000_000
+    assert result["purchase_price_excess_krw"] > 0
 
 
 def test_family_loan_bullet_repayment_only_counts_monthly_interest() -> None:
