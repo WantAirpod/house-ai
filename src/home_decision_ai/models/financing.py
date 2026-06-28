@@ -79,6 +79,7 @@ class FinancingScenarioInput:
     card_acquisition_tax: bool = True
     card_brokerage: bool = True
     card_legal_cost: bool = True
+    card_payment_ratio_percent: float = 100.0
     card_installment_months: int = 12
     card_installment_rate_percent: float = 0.0
     dsr_warning_percent: float = 39.0
@@ -117,6 +118,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         raise ValueError("combined gross income must be positive")
     if values.lease_loan_krw > values.lease_deposit_krw:
         raise ValueError("lease loan cannot exceed lease deposit")
+    if not 0 <= values.card_payment_ratio_percent <= 100:
+        raise ValueError("card payment ratio must be between 0 and 100")
     if values.family_loan_repayment_type not in {"bullet", "amortizing"}:
         raise ValueError("unsupported family loan repayment type")
 
@@ -149,10 +152,15 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     first_time_tax_discount = acquisition_tax_discount + local_education_tax_discount
     acquisition_tax = max(0, gross_acquisition_tax - first_time_tax_discount)
     brokerage = round(values.purchase_price_krw * values.brokerage_rate_percent / 100)
+    card_ratio = values.card_payment_ratio_percent / 100
     card_items = {
-        "acquisition_tax": acquisition_tax if values.card_acquisition_tax else 0,
-        "brokerage": brokerage if values.card_brokerage else 0,
-        "legal_cost": values.legal_cost_krw if values.card_legal_cost else 0,
+        "acquisition_tax": (
+            round(acquisition_tax * card_ratio) if values.card_acquisition_tax else 0
+        ),
+        "brokerage": round(brokerage * card_ratio) if values.card_brokerage else 0,
+        "legal_cost": (
+            round(values.legal_cost_krw * card_ratio) if values.card_legal_cost else 0
+        ),
     }
     card_payment_total = sum(card_items.values())
     total_transaction_cost = acquisition_tax + brokerage + values.legal_cost_krw
@@ -278,6 +286,7 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "total_transaction_cost_krw": round(total_transaction_cost),
         "total_required_krw": round(total_required),
         "card_items": card_items,
+        "card_payment_ratio_percent": values.card_payment_ratio_percent,
         "card_payment_total_krw": round(card_payment_total),
         "cash_required_at_closing_krw": round(cash_required_at_closing),
         "required_credit_loan_krw": round(required_credit_loan),

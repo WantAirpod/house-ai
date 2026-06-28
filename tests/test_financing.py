@@ -54,6 +54,26 @@ def test_cash_costs_are_included_in_required_credit_loan() -> None:
     assert result["required_credit_loan_krw"] == 80_115_000
 
 
+def test_transaction_costs_can_be_split_between_card_and_credit() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(card_payment_ratio_percent=50)
+    )
+
+    assert result["card_payment_ratio_percent"] == 50
+    assert result["card_payment_total_krw"] == 20_057_500
+    assert result["required_credit_loan_krw"] == 60_057_500
+    assert result["card_monthly_payment_krw"] == 1_671_458
+
+
+def test_zero_card_ratio_moves_all_transaction_costs_to_credit_need() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(card_payment_ratio_percent=0)
+    )
+
+    assert result["card_payment_total_krw"] == 0
+    assert result["required_credit_loan_krw"] == 80_115_000
+
+
 def test_separate_lease_equity_reduces_credit_need() -> None:
     result = calculate_financing_scenario(
         FinancingScenarioInput(lease_equity_included_in_cash=False)

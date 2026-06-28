@@ -43,6 +43,7 @@ class FinancingCalculatorRequest(BaseModel):
     card_acquisition_tax: bool = True
     card_brokerage: bool = True
     card_legal_cost: bool = True
+    card_payment_ratio_percent: float = Field(default=100.0, ge=0, le=100)
     card_installment_months: int = Field(default=12, gt=0)
     card_installment_rate_percent: float = Field(default=0.0, ge=0)
     dsr_warning_percent: float = Field(default=39.0, ge=0)

@@ -322,6 +322,10 @@
                 <div class="input-wrap"><input id="card_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
               </div>
               <div class="field">
+                <label for="card_payment_ratio_percent">거래비 카드 결제 비율</label>
+                <div class="input-wrap"><input id="card_payment_ratio_percent" type="number" min="0" max="100" step="1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
                 <label for="card_installment_rate_percent">카드 할부금리</label>
                 <div class="input-wrap"><input id="card_installment_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
@@ -349,7 +353,7 @@
         <section class="panel result-panel" aria-labelledby="result-title">
           <h2 class="panel-title" id="result-title">계산 결과</h2>
           <div class="metrics">
-            <div class="metric"><div class="metric-label">필요 신용대출</div><div class="metric-value" id="required-credit">-</div><div class="metric-note">카드 결제분 제외</div></div>
+            <div class="metric"><div class="metric-label">필요 신용대출</div><div class="metric-value" id="required-credit">-</div><div class="metric-note" id="funding-split-note">카드 결제분 제외</div></div>
             <div class="metric"><div class="metric-label">카드 결제 예정</div><div class="metric-value" id="card-total">-</div><div class="metric-note" id="card-monthly-note">-</div></div>
             <div class="metric"><div class="metric-label">스트레스 DSR</div><div class="metric-value" id="stress-dsr">-</div><div class="metric-note" id="stress-rate-note">-</div></div>
             <div class="metric"><div class="metric-label">카드기간 월 유출</div><div class="metric-value" id="monthly-outflow">-</div><div class="metric-note" id="family-cashflow-note">-</div></div>
@@ -414,7 +418,8 @@
         "credit_term_years", "credit_stress_rate_percent", "family_loan_rate_percent",
         "family_loan_term_years", "family_loan_repayment_type",
         "acquisition_tax_rate_percent", "brokerage_rate_percent", "card_installment_months",
-        "card_installment_rate_percent", "local_education_tax_discount_ratio_percent",
+        "card_installment_rate_percent", "card_payment_ratio_percent",
+        "local_education_tax_discount_ratio_percent",
         "dsr_warning_percent", "dsr_limit_percent", ...checkboxFields
       ];
       let defaults = null;
@@ -465,6 +470,8 @@
       function render(result) {
         latestResult = result;
         document.getElementById("required-credit").textContent = compactWon(result.required_credit_loan_krw);
+        document.getElementById("funding-split-note").textContent =
+          `거래비 카드 ${result.card_payment_ratio_percent}% 적용`;
         document.getElementById("card-total").textContent = compactWon(result.card_payment_total_krw);
         document.getElementById("card-monthly-note").textContent = `월 ${compactWon(result.card_monthly_payment_krw)}`;
         document.getElementById("stress-dsr").textContent = `${result.stress_dsr_percent}%`;
