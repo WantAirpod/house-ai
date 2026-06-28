@@ -22,6 +22,27 @@ def test_financing_calculator_page() -> None:
     assert "생애최초 취득세 감면 가정" in response.text
 
 
+def test_dashboard_is_a_clean_navigation_hub() -> None:
+    client = TestClient(create_app())
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "의사결정 홈" in response.text
+    assert "후보 단지" in response.text
+    assert "관심 지역" not in response.text
+
+
+def test_research_page_keeps_region_and_watchlist_details() -> None:
+    client = TestClient(create_app())
+
+    response = client.get("/research")
+
+    assert response.status_code == 200
+    assert "후보 단지 리서치" in response.text
+    assert "관심 지역" in response.text
+
+
 def test_financing_plan_page() -> None:
     client = TestClient(create_app())
 

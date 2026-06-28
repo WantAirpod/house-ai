@@ -76,7 +76,12 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/", response_class=HTMLResponse)
-    def dashboard(request: Request) -> HTMLResponse:
+    def dashboard() -> HTMLResponse:
+        template_path = Path(__file__).resolve().parents[1] / "templates" / "dashboard.html"
+        return HTMLResponse(template_path.read_text(encoding="utf-8"))
+
+    @app.get("/research", response_class=HTMLResponse)
+    def research_overview(request: Request) -> HTMLResponse:
         del request
         regions: list[dict[str, Any]] = []
         watchlist: list[dict[str, Any]] = []
@@ -115,7 +120,7 @@ def create_app() -> FastAPI:
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>home-decision-ai</title>
+    <title>후보 단지 리서치 | home-decision-ai</title>
     <style>
       body {{
         margin: 0;
@@ -123,7 +128,9 @@ def create_app() -> FastAPI:
         background: #f7f7f4;
         color: #202124;
       }}
-      main {{ max-width: 980px; margin: 0 auto; padding: 40px 20px; }}
+      main {{ max-width: 1180px; margin: 0 auto; padding: 32px 20px 52px; }}
+      a {{ color: #176b48; }}
+      .back {{ display: inline-block; margin-bottom: 20px; font-size: 14px; }}
       table {{
         width: 100%;
         border-collapse: collapse;
@@ -149,9 +156,9 @@ def create_app() -> FastAPI:
   </head>
   <body>
     <main>
-      <h1>home-decision-ai</h1>
-      <p>실거주 아파트 매수를 위한 부동산 인텔리전스 플랫폼</p>
-      <p><a href="/financing-calculator">자금·대출 계산기 열기</a></p>
+      <a class="back" href="/">홈으로 돌아가기</a>
+      <h1>후보 단지 리서치</h1>
+      <p>관심 지역과 검토 중인 단지의 원본 목록입니다.</p>
       <section class="status">
         <div class="pill">Database: {database_status}</div>
         <div class="pill">Notion: {notion_status}</div>
