@@ -1,0 +1,616 @@
+{
+  "generated_at": "2026-06-28",
+  "target_recent_median_krw": 900000000.0,
+  "regions": {
+    "수지": [
+      {
+        "name": "신명스카이뷰",
+        "recent_median_krw": 900000000,
+        "recent_count": 9,
+        "five_year_count": 33,
+        "built_year": 2004,
+        "gap_percent": 0.0
+      },
+      {
+        "name": "대지마을현대홈타운3차2단지",
+        "recent_median_krw": 900000000.0,
+        "recent_count": 8,
+        "five_year_count": 59,
+        "built_year": 2003,
+        "gap_percent": 0.0
+      },
+      {
+        "name": "포레나 광교상현",
+        "recent_median_krw": 898000000,
+        "recent_count": 45,
+        "five_year_count": 180,
+        "built_year": 2018,
+        "gap_percent": 0.2
+      },
+      {
+        "name": "써니벨리",
+        "recent_median_krw": 910000000.0,
+        "recent_count": 18,
+        "five_year_count": 75,
+        "built_year": 2004,
+        "gap_percent": 1.1
+      },
+      {
+        "name": "벽산블루밍3단지",
+        "recent_median_krw": 890000000,
+        "recent_count": 5,
+        "five_year_count": 21,
+        "built_year": 1997,
+        "gap_percent": 1.1
+      },
+      {
+        "name": "힐스테이트광교산",
+        "recent_median_krw": 915000000.0,
+        "recent_count": 10,
+        "five_year_count": 22,
+        "built_year": 2022,
+        "gap_percent": 1.7
+      },
+      {
+        "name": "한국",
+        "recent_median_krw": 920000000,
+        "recent_count": 23,
+        "five_year_count": 63,
+        "built_year": 1995,
+        "gap_percent": 2.2
+      },
+      {
+        "name": "벽산블루밍4단지",
+        "recent_median_krw": 880000000,
+        "recent_count": 7,
+        "five_year_count": 42,
+        "built_year": 1999,
+        "gap_percent": 2.2
+      },
+      {
+        "name": "성동마을강남",
+        "recent_median_krw": 920000000,
+        "recent_count": 5,
+        "five_year_count": 35,
+        "built_year": 2001,
+        "gap_percent": 2.2
+      },
+      {
+        "name": "인현마을힐스테이트(7차1단지)",
+        "recent_median_krw": 875000000.0,
+        "recent_count": 10,
+        "five_year_count": 30,
+        "built_year": 2004,
+        "gap_percent": 2.8
+      },
+      {
+        "name": "꽃메마을힐스테이트(4차4단지)",
+        "recent_median_krw": 872000000,
+        "recent_count": 17,
+        "five_year_count": 52,
+        "built_year": 2004,
+        "gap_percent": 3.1
+      },
+      {
+        "name": "신정마을진흥",
+        "recent_median_krw": 930000000,
+        "recent_count": 31,
+        "five_year_count": 124,
+        "built_year": 1999,
+        "gap_percent": 3.3
+      },
+      {
+        "name": "성복역아이파크",
+        "recent_median_krw": 870000000.0,
+        "recent_count": 24,
+        "five_year_count": 80,
+        "built_year": 2002,
+        "gap_percent": 3.3
+      },
+      {
+        "name": "서홍마을4",
+        "recent_median_krw": 870000000.0,
+        "recent_count": 18,
+        "five_year_count": 97,
+        "built_year": 2004,
+        "gap_percent": 3.3
+      },
+      {
+        "name": "서원마을3단지아이파크",
+        "recent_median_krw": 867500000.0,
+        "recent_count": 8,
+        "five_year_count": 55,
+        "built_year": 2002,
+        "gap_percent": 3.6
+      }
+    ],
+    "기흥": [
+      {
+        "name": "기흥역센트럴푸르지오",
+        "recent_median_krw": 900000000.0,
+        "recent_count": 150,
+        "five_year_count": 428,
+        "built_year": 2018,
+        "gap_percent": 0.0
+      },
+      {
+        "name": "기흥역더샵",
+        "recent_median_krw": 920000000.0,
+        "recent_count": 80,
+        "five_year_count": 182,
+        "built_year": 2018,
+        "gap_percent": 2.2
+      },
+      {
+        "name": "죽현마을아이파크",
+        "recent_median_krw": 932500000.0,
+        "recent_count": 100,
+        "five_year_count": 307,
+        "built_year": 2004,
+        "gap_percent": 3.6
+      },
+      {
+        "name": "힐스테이트구성",
+        "recent_median_krw": 847000000,
+        "recent_count": 31,
+        "five_year_count": 51,
+        "built_year": 2023,
+        "gap_percent": 5.9
+      },
+      {
+        "name": "기흥역지웰푸르지오",
+        "recent_median_krw": 845000000,
+        "recent_count": 41,
+        "five_year_count": 136,
+        "built_year": 2017,
+        "gap_percent": 6.1
+      },
+      {
+        "name": "성호샤인힐즈아파트",
+        "recent_median_krw": 955000000.0,
+        "recent_count": 38,
+        "five_year_count": 109,
+        "built_year": 2005,
+        "gap_percent": 6.1
+      },
+      {
+        "name": "호반써밋레이크파크",
+        "recent_median_krw": 842000000,
+        "recent_count": 57,
+        "five_year_count": 152,
+        "built_year": 2009,
+        "gap_percent": 6.4
+      },
+      {
+        "name": "연원마을엘지",
+        "recent_median_krw": 959500000.0,
+        "recent_count": 20,
+        "five_year_count": 61,
+        "built_year": 1999,
+        "gap_percent": 6.6
+      },
+      {
+        "name": "흥덕마을7단지힐스테이트",
+        "recent_median_krw": 828000000,
+        "recent_count": 49,
+        "five_year_count": 105,
+        "built_year": 2010,
+        "gap_percent": 8.0
+      },
+      {
+        "name": "블루밍구성더센트럴",
+        "recent_median_krw": 817500000.0,
+        "recent_count": 112,
+        "five_year_count": 211,
+        "built_year": 2000,
+        "gap_percent": 9.2
+      },
+      {
+        "name": "기흥더샵프라임뷰",
+        "recent_median_krw": 817500000.0,
+        "recent_count": 42,
+        "five_year_count": 106,
+        "built_year": 2013,
+        "gap_percent": 9.2
+      },
+      {
+        "name": "기흥역파크푸르지오",
+        "recent_median_krw": 809750000.0,
+        "recent_count": 58,
+        "five_year_count": 166,
+        "built_year": 2018,
+        "gap_percent": 10.0
+      },
+      {
+        "name": "기흥역 롯데캐슬 레이시티",
+        "recent_median_krw": 802500000.0,
+        "recent_count": 24,
+        "five_year_count": 80,
+        "built_year": 2017,
+        "gap_percent": 10.8
+      },
+      {
+        "name": "흥덕마을자연앤스위첸",
+        "recent_median_krw": 800000000.0,
+        "recent_count": 44,
+        "five_year_count": 105,
+        "built_year": 2009,
+        "gap_percent": 11.1
+      },
+      {
+        "name": "행원마을동아솔레시티",
+        "recent_median_krw": 798500000.0,
+        "recent_count": 18,
+        "five_year_count": 29,
+        "built_year": 2003,
+        "gap_percent": 11.3
+      }
+    ],
+    "평촌": [
+      {
+        "name": "은하수청구",
+        "recent_median_krw": 905000000,
+        "recent_count": 21,
+        "five_year_count": 45,
+        "built_year": 1992,
+        "gap_percent": 0.6
+      },
+      {
+        "name": "한가람(두산)",
+        "recent_median_krw": 892500000.0,
+        "recent_count": 8,
+        "five_year_count": 26,
+        "built_year": 1992,
+        "gap_percent": 0.8
+      },
+      {
+        "name": "한가람(한양)",
+        "recent_median_krw": 890000000,
+        "recent_count": 11,
+        "five_year_count": 30,
+        "built_year": 1995,
+        "gap_percent": 1.1
+      },
+      {
+        "name": "한가람(삼성)",
+        "recent_median_krw": 917500000.0,
+        "recent_count": 22,
+        "five_year_count": 52,
+        "built_year": 1995,
+        "gap_percent": 1.9
+      },
+      {
+        "name": "무궁화효성",
+        "recent_median_krw": 880000000,
+        "recent_count": 15,
+        "five_year_count": 56,
+        "built_year": 1992,
+        "gap_percent": 2.2
+      },
+      {
+        "name": "현대",
+        "recent_median_krw": 925000000.0,
+        "recent_count": 8,
+        "five_year_count": 47,
+        "built_year": 1985,
+        "gap_percent": 2.8
+      },
+      {
+        "name": "래미안인덕원더포인트",
+        "recent_median_krw": 870000000,
+        "recent_count": 31,
+        "five_year_count": 96,
+        "built_year": 2000,
+        "gap_percent": 3.3
+      },
+      {
+        "name": "초원한양",
+        "recent_median_krw": 866500000.0,
+        "recent_count": 34,
+        "five_year_count": 86,
+        "built_year": 1993,
+        "gap_percent": 3.7
+      },
+      {
+        "name": "이-편한세상",
+        "recent_median_krw": 862500000.0,
+        "recent_count": 12,
+        "five_year_count": 41,
+        "built_year": 2008,
+        "gap_percent": 4.2
+      },
+      {
+        "name": "인덕원대림2차",
+        "recent_median_krw": 940000000.0,
+        "recent_count": 36,
+        "five_year_count": 124,
+        "built_year": 2004,
+        "gap_percent": 4.4
+      },
+      {
+        "name": "무궁화한양",
+        "recent_median_krw": 860000000,
+        "recent_count": 15,
+        "five_year_count": 50,
+        "built_year": 1992,
+        "gap_percent": 4.4
+      },
+      {
+        "name": "무궁화금호",
+        "recent_median_krw": 945000000,
+        "recent_count": 21,
+        "five_year_count": 52,
+        "built_year": 1992,
+        "gap_percent": 5.0
+      },
+      {
+        "name": "호계1차현대홈타운",
+        "recent_median_krw": 832500000.0,
+        "recent_count": 26,
+        "five_year_count": 75,
+        "built_year": 2002,
+        "gap_percent": 7.5
+      },
+      {
+        "name": "샛별한양4-3",
+        "recent_median_krw": 825000000,
+        "recent_count": 9,
+        "five_year_count": 24,
+        "built_year": 1993,
+        "gap_percent": 8.3
+      },
+      {
+        "name": "무궁화코오롱",
+        "recent_median_krw": 812500000.0,
+        "recent_count": 16,
+        "five_year_count": 43,
+        "built_year": 1992,
+        "gap_percent": 9.7
+      }
+    ],
+    "하남": [
+      {
+        "name": "하남힐즈파크푸르지오2단지",
+        "recent_median_krw": 880000000,
+        "recent_count": 23,
+        "five_year_count": 76,
+        "built_year": 2018,
+        "gap_percent": 2.2
+      },
+      {
+        "name": "미사강변한신휴플러스",
+        "recent_median_krw": 922500000.0,
+        "recent_count": 24,
+        "five_year_count": 95,
+        "built_year": 2015,
+        "gap_percent": 2.5
+      },
+      {
+        "name": "대명강변타운",
+        "recent_median_krw": 864000000.0,
+        "recent_count": 66,
+        "five_year_count": 222,
+        "built_year": 2007,
+        "gap_percent": 4.0
+      },
+      {
+        "name": "하남풍산아이파크(5단지)",
+        "recent_median_krw": 947500000.0,
+        "recent_count": 26,
+        "five_year_count": 72,
+        "built_year": 2008,
+        "gap_percent": 5.3
+      },
+      {
+        "name": "하남풍산아이파크(1단지)",
+        "recent_median_krw": 955000000.0,
+        "recent_count": 28,
+        "five_year_count": 101,
+        "built_year": 2008,
+        "gap_percent": 6.1
+      },
+      {
+        "name": "에코타운(B블럭)",
+        "recent_median_krw": 840000000,
+        "recent_count": 17,
+        "five_year_count": 64,
+        "built_year": 2004,
+        "gap_percent": 6.7
+      },
+      {
+        "name": "미사강변리슈빌엔에이치에프",
+        "recent_median_krw": 967500000.0,
+        "recent_count": 18,
+        "five_year_count": 38,
+        "built_year": 2018,
+        "gap_percent": 7.5
+      },
+      {
+        "name": "동원베네스트",
+        "recent_median_krw": 823500000.0,
+        "recent_count": 16,
+        "five_year_count": 42,
+        "built_year": 2008,
+        "gap_percent": 8.5
+      },
+      {
+        "name": "하남풍산센트레빌",
+        "recent_median_krw": 820000000,
+        "recent_count": 17,
+        "five_year_count": 32,
+        "built_year": 2008,
+        "gap_percent": 8.9
+      },
+      {
+        "name": "하남한솔솔파크",
+        "recent_median_krw": 805000000,
+        "recent_count": 21,
+        "five_year_count": 95,
+        "built_year": 2006,
+        "gap_percent": 10.6
+      },
+      {
+        "name": "미사강변 파크뷰",
+        "recent_median_krw": 1000000000,
+        "recent_count": 29,
+        "five_year_count": 75,
+        "built_year": 2015,
+        "gap_percent": 11.1
+      },
+      {
+        "name": "미사강변동일하이빌",
+        "recent_median_krw": 1000000000.0,
+        "recent_count": 26,
+        "five_year_count": 76,
+        "built_year": 2018,
+        "gap_percent": 11.1
+      },
+      {
+        "name": "미사강변도시 베라체",
+        "recent_median_krw": 1000000000,
+        "recent_count": 17,
+        "five_year_count": 72,
+        "built_year": 2015,
+        "gap_percent": 11.1
+      },
+      {
+        "name": "미사강변효성해링턴플레이스엔에이치에프",
+        "recent_median_krw": 1002500000.0,
+        "recent_count": 16,
+        "five_year_count": 50,
+        "built_year": 2017,
+        "gap_percent": 11.4
+      },
+      {
+        "name": "미사레스티아",
+        "recent_median_krw": 1010000000.0,
+        "recent_count": 70,
+        "five_year_count": 290,
+        "built_year": 2017,
+        "gap_percent": 12.2
+      }
+    ],
+    "강동": [
+      {
+        "name": "현대1",
+        "recent_median_krw": 912500000.0,
+        "recent_count": 10,
+        "five_year_count": 38,
+        "built_year": 1996,
+        "gap_percent": 1.4
+      },
+      {
+        "name": "동아하이빌아파트",
+        "recent_median_krw": 930000000.0,
+        "recent_count": 12,
+        "five_year_count": 40,
+        "built_year": 2000,
+        "gap_percent": 3.3
+      },
+      {
+        "name": "우림루미아트",
+        "recent_median_krw": 827500000.0,
+        "recent_count": 10,
+        "five_year_count": 15,
+        "built_year": 2003,
+        "gap_percent": 8.1
+      },
+      {
+        "name": "암사e편한세상",
+        "recent_median_krw": 998500000.0,
+        "recent_count": 10,
+        "five_year_count": 26,
+        "built_year": 2005,
+        "gap_percent": 10.9
+      },
+      {
+        "name": "암사동한솔",
+        "recent_median_krw": 1015000000.0,
+        "recent_count": 12,
+        "five_year_count": 17,
+        "built_year": 2002,
+        "gap_percent": 12.8
+      },
+      {
+        "name": "우성",
+        "recent_median_krw": 1035000000.0,
+        "recent_count": 32,
+        "five_year_count": 59,
+        "built_year": 1985,
+        "gap_percent": 15.0
+      },
+      {
+        "name": "길동우성",
+        "recent_median_krw": 1039000000.0,
+        "recent_count": 24,
+        "five_year_count": 93,
+        "built_year": 1994,
+        "gap_percent": 15.4
+      },
+      {
+        "name": "명일지에스아파트",
+        "recent_median_krw": 1045000000,
+        "recent_count": 23,
+        "five_year_count": 91,
+        "built_year": 1999,
+        "gap_percent": 16.1
+      },
+      {
+        "name": "강일리버파크4단지",
+        "recent_median_krw": 1050000000.0,
+        "recent_count": 12,
+        "five_year_count": 30,
+        "built_year": 2009,
+        "gap_percent": 16.7
+      },
+      {
+        "name": "강일리버파크2단지",
+        "recent_median_krw": 1060000000,
+        "recent_count": 11,
+        "five_year_count": 31,
+        "built_year": 2009,
+        "gap_percent": 17.8
+      },
+      {
+        "name": "강일리버파크1단지",
+        "recent_median_krw": 1070000000,
+        "recent_count": 5,
+        "five_year_count": 18,
+        "built_year": 2009,
+        "gap_percent": 18.9
+      },
+      {
+        "name": "강일리버파크8단지",
+        "recent_median_krw": 1087500000.0,
+        "recent_count": 10,
+        "five_year_count": 38,
+        "built_year": 2009,
+        "gap_percent": 20.8
+      },
+      {
+        "name": "천호동삼성아파트",
+        "recent_median_krw": 1097500000.0,
+        "recent_count": 6,
+        "five_year_count": 29,
+        "built_year": 1997,
+        "gap_percent": 21.9
+      },
+      {
+        "name": "강일리버파크5단지",
+        "recent_median_krw": 1100000000,
+        "recent_count": 7,
+        "five_year_count": 25,
+        "built_year": 2009,
+        "gap_percent": 22.2
+      },
+      {
+        "name": "현대",
+        "recent_median_krw": 1105000000.0,
+        "recent_count": 10,
+        "five_year_count": 16,
+        "built_year": 1987,
+        "gap_percent": 22.8
+      }
+    ]
+  }
+}
