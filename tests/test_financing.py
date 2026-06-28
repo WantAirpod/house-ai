@@ -106,3 +106,37 @@ def test_policy_thresholds_are_configurable() -> None:
     assert result["credit_stress_applied"] is True
     assert result["dsr_warning_percent"] == 20
     assert result["dsr_limit_percent"] == 25
+
+
+def test_family_loan_bullet_repayment_only_counts_monthly_interest() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            family_loan_repayment_type="bullet",
+            family_principal_reserve_enabled=False,
+        )
+    )
+
+    assert result["family_monthly_payment_krw"] == 268_333
+    assert result["family_principal_reserve_krw"] == 0
+    assert result["family_balloon_payment_krw"] == 70_000_000
+
+
+def test_family_loan_principal_reserve_is_optional() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            family_loan_repayment_type="bullet",
+            family_principal_reserve_enabled=True,
+        )
+    )
+
+    assert result["family_principal_reserve_krw"] == 583_333
+
+
+def test_family_loan_can_use_amortizing_repayment() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(family_loan_repayment_type="amortizing")
+    )
+
+    assert result["family_monthly_payment_krw"] == pytest.approx(728_848, abs=1)
+    assert result["family_principal_reserve_krw"] == 0
+    assert result["family_balloon_payment_krw"] == 0

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -31,6 +31,8 @@ class FinancingCalculatorRequest(BaseModel):
     family_loan_amount_krw: int = Field(default=70_000_000, ge=0)
     family_loan_rate_percent: float = Field(default=4.6, ge=0)
     family_loan_term_years: int = Field(default=10, gt=0)
+    family_loan_repayment_type: Literal["bullet", "amortizing"] = "bullet"
+    family_principal_reserve_enabled: bool = False
     acquisition_tax_rate_percent: float = Field(default=3.3, ge=0)
     first_time_homebuyer_eligible: bool = False
     first_time_homebuyer_price_limit_krw: int = Field(default=1_200_000_000, ge=0)

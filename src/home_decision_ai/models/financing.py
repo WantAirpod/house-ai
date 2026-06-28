@@ -67,6 +67,8 @@ class FinancingScenarioInput:
     family_loan_amount_krw: int = 70_000_000
     family_loan_rate_percent: float = 4.6
     family_loan_term_years: int = 10
+    family_loan_repayment_type: str = "bullet"
+    family_principal_reserve_enabled: bool = False
     acquisition_tax_rate_percent: float = 3.3
     first_time_homebuyer_eligible: bool = False
     first_time_homebuyer_price_limit_krw: int = 1_200_000_000
@@ -115,6 +117,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         raise ValueError("combined gross income must be positive")
     if values.lease_loan_krw > values.lease_deposit_krw:
         raise ValueError("lease loan cannot exceed lease deposit")
+    if values.family_loan_repayment_type not in {"bullet", "amortizing"}:
+        raise ValueError("unsupported family loan repayment type")
 
     lease_equity = values.lease_deposit_krw - values.lease_loan_krw
     available_cash = values.cash_krw
@@ -170,9 +174,21 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     family_monthly_interest = (
         values.family_loan_amount_krw * values.family_loan_rate_percent / 100 / 12
     )
+    family_months = values.family_loan_term_years * 12
+    family_monthly_payment = (
+        annuity_payment(
+            values.family_loan_amount_krw,
+            values.family_loan_rate_percent,
+            family_months,
+        )
+        if values.family_loan_repayment_type == "amortizing"
+        else family_monthly_interest
+    )
     family_principal_reserve = (
-        values.family_loan_amount_krw / (values.family_loan_term_years * 12)
-        if values.family_loan_term_years > 0
+        values.family_loan_amount_krw / family_months
+        if values.family_loan_repayment_type == "bullet"
+        and values.family_principal_reserve_enabled
+        and family_months > 0
         else 0
     )
     card_payment = annuity_payment(
@@ -199,7 +215,7 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         / values.combined_gross_income_krw
         * 100
     )
-    monthly_debt_payment = mortgage_payment + credit_payment + family_monthly_interest
+    monthly_debt_payment = mortgage_payment + credit_payment + family_monthly_payment
     monthly_outflow_during_card_installment = (
         monthly_debt_payment + family_principal_reserve + card_payment
     )
@@ -238,6 +254,15 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         )
     if card_payment > combined_monthly_income(values) * 0.2:
         warnings.append("카드 월 납입액이 세전 월소득의 20%를 초과합니다.")
+    if (
+        values.family_loan_repayment_type == "bullet"
+        and values.family_loan_amount_krw > 0
+        and not values.family_principal_reserve_enabled
+    ):
+        warnings.append(
+            f"부모 차용 만기 원금 {values.family_loan_amount_krw:,}원은 월 현금유출에 "
+            "포함되지 않았습니다. 만기 상환재원을 별도로 준비해야 합니다."
+        )
 
     result = {
         "lease_equity_krw": round(lease_equity),
@@ -259,8 +284,15 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "cash_surplus_krw": round(cash_surplus),
         "mortgage_monthly_payment_krw": round(mortgage_payment),
         "credit_monthly_payment_krw": round(credit_payment),
+        "family_loan_repayment_type": values.family_loan_repayment_type,
         "family_monthly_interest_krw": round(family_monthly_interest),
+        "family_monthly_payment_krw": round(family_monthly_payment),
         "family_principal_reserve_krw": round(family_principal_reserve),
+        "family_balloon_payment_krw": (
+            values.family_loan_amount_krw
+            if values.family_loan_repayment_type == "bullet"
+            else 0
+        ),
         "card_monthly_payment_krw": round(card_payment),
         "monthly_debt_payment_krw": round(monthly_debt_payment),
         "monthly_outflow_during_card_installment_krw": round(

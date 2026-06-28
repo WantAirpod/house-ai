@@ -275,6 +275,17 @@
                 <label for="family_loan_term_years">부모 차용 만기</label>
                 <div class="input-wrap"><input id="family_loan_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
               </div>
+              <div class="field">
+                <label for="family_loan_repayment_type">부모 차용 상환방식</label>
+                <select id="family_loan_repayment_type">
+                  <option value="bullet">만기일시상환</option>
+                  <option value="amortizing">원리금균등상환</option>
+                </select>
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top: 12px;">
+              <div class="toggle-copy"><strong>만기 원금 월 적립</strong><span>만기일시상환 원금을 차용기간 동안 별도 적립</span></div>
+              <input id="family_principal_reserve_enabled" type="checkbox">
             </div>
           </div>
 
@@ -340,7 +351,7 @@
             <div class="metric"><div class="metric-label">필요 신용대출</div><div class="metric-value" id="required-credit">-</div><div class="metric-note">카드 결제분 제외</div></div>
             <div class="metric"><div class="metric-label">카드 결제 예정</div><div class="metric-value" id="card-total">-</div><div class="metric-note" id="card-monthly-note">-</div></div>
             <div class="metric"><div class="metric-label">스트레스 DSR</div><div class="metric-value" id="stress-dsr">-</div><div class="metric-note" id="stress-rate-note">-</div></div>
-            <div class="metric"><div class="metric-label">카드기간 월 유출</div><div class="metric-value" id="monthly-outflow">-</div><div class="metric-note">부모 원금 적립 포함</div></div>
+            <div class="metric"><div class="metric-label">카드기간 월 유출</div><div class="metric-value" id="monthly-outflow">-</div><div class="metric-note" id="family-cashflow-note">-</div></div>
           </div>
           <div class="result-body">
             <div class="dsr-row"><span>계약금리 DSR</span><div class="bar"><div class="bar-fill" id="contract-bar"></div></div><strong id="contract-dsr">-</strong></div>
@@ -369,8 +380,9 @@
                 <tbody>
                   <tr><td>주담대 원리금</td><td id="mortgage-monthly">-</td></tr>
                   <tr><td>신용대출 원리금</td><td id="credit-monthly">-</td></tr>
-                  <tr><td>부모 차용 이자</td><td id="family-interest">-</td></tr>
+                  <tr><td>부모 차용 월 상환액</td><td id="family-payment">-</td></tr>
                   <tr><td>부모 원금 적립</td><td id="family-reserve">-</td></tr>
+                  <tr><td>부모 차용 만기 원금</td><td id="family-balloon">-</td></tr>
                   <tr><td>카드 할부</td><td id="card-monthly">-</td></tr>
                   <tr><td><strong>카드 할부기간 총 월 유출</strong></td><td id="monthly-total"><strong>-</strong></td></tr>
                 </tbody>
@@ -390,14 +402,16 @@
         "first_time_homebuyer_price_limit_krw", "first_time_acquisition_tax_discount_limit_krw"
       ]);
       const checkboxFields = new Set([
-        "lease_equity_included_in_cash", "first_time_homebuyer_eligible",
+        "lease_equity_included_in_cash", "family_principal_reserve_enabled",
+        "first_time_homebuyer_eligible",
         "card_acquisition_tax", "card_brokerage", "card_legal_cost"
       ]);
+      const stringFields = new Set(["family_loan_repayment_type"]);
       const fieldIds = [
         ...amountFields, "mortgage_rate_percent", "mortgage_term_years",
         "mortgage_stress_rate_percent", "mortgage_stress_ratio_percent", "credit_rate_percent",
         "credit_term_years", "credit_stress_rate_percent", "family_loan_rate_percent",
-        "family_loan_term_years",
+        "family_loan_term_years", "family_loan_repayment_type",
         "acquisition_tax_rate_percent", "brokerage_rate_percent", "card_installment_months",
         "card_installment_rate_percent", "local_education_tax_discount_ratio_percent",
         "dsr_warning_percent", "dsr_limit_percent", ...checkboxFields
@@ -430,6 +444,7 @@
         fieldIds.forEach(id => {
           const input = document.getElementById(id);
           if (checkboxFields.has(id)) payload[id] = input.checked;
+          else if (stringFields.has(id)) payload[id] = input.value;
           else {
             const number = Number(input.value || 0);
             payload[id] = amountFields.has(id) ? Math.round(number * 10000) : number;
@@ -454,6 +469,10 @@
         document.getElementById("stress-dsr").textContent = `${result.stress_dsr_percent}%`;
         document.getElementById("stress-rate-note").textContent = `주담대 심사금리 ${result.mortgage_stress_rate_percent}%`;
         document.getElementById("monthly-outflow").textContent = compactWon(result.monthly_outflow_during_card_installment_krw);
+        document.getElementById("family-cashflow-note").textContent =
+          result.family_loan_repayment_type === "bullet"
+            ? (result.family_principal_reserve_krw > 0 ? "만기 원금 적립 포함" : "만기 원금 적립 제외")
+            : "부모 차용 원리금 포함";
         document.getElementById("contract-dsr").textContent = `${result.contract_dsr_percent}%`;
         document.getElementById("stress-dsr-row").textContent = `${result.stress_dsr_percent}%`;
         setBar("contract-bar", result.contract_dsr_percent);
@@ -471,8 +490,9 @@
           "cash-surplus": result.cash_surplus_krw,
           "mortgage-monthly": result.mortgage_monthly_payment_krw,
           "credit-monthly": result.credit_monthly_payment_krw,
-          "family-interest": result.family_monthly_interest_krw,
+          "family-payment": result.family_monthly_payment_krw,
           "family-reserve": result.family_principal_reserve_krw,
+          "family-balloon": result.family_balloon_payment_krw,
           "card-monthly": result.card_monthly_payment_krw,
           "monthly-total": result.monthly_outflow_during_card_installment_krw
         };
