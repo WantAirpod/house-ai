@@ -23,11 +23,18 @@ from home_decision_ai.models.financing import classify_price
 
 BUDGET_REALISTIC_KRW = 920_000_000
 BUDGET_MAX_KRW = 1_050_000_000
-MAX_EXCLUDED_HOUSEHOLD_COUNT = 200
+MIN_LATEST_TRADE_PRICE_KRW = 900_000_000
+MAX_EXCLUDED_HOUSEHOLD_COUNT = 300
 PREFERRED_MIN_HOUSEHOLD_COUNT = 500
 WALKING_DISTANCE_PER_MINUTE_M = 60
 STATION_SEARCH_RADIUS_M = 5000
+MAX_STATION_WALK_MINUTES_EXCLUSIVE = 23
+PREFERRED_MAX_AGE_YEARS = 12
 STATION_CACHE_PATH = Path("data/processed/station_access_cache.json")
+FIVE_YEAR_TRADE_CACHE_PATH = Path("data/processed/five_year_trade_cache.json")
+MOLIT_SOURCE_URL = "https://rt.molit.go.kr/"
+KAKAO_LOCAL_SOURCE_URL = "https://developers.kakao.com/docs/latest/ko/local/dev-guide"
+NAVER_BLOG_SOURCE_URL = "https://developers.naver.com/docs/serviceapi/search/blog/blog.md"
 
 REGIONS = {
     "용인 수지": {
@@ -55,7 +62,7 @@ REGIONS = {
             "서울 동작구": "11590",
             "서울 관악구": "11620",
         },
-        "memo": "10.5억 이하 59/84 실거래만 추림. 생활권·연식·면적 타협 가능성 확인.",
+        "memo": "9억 이상 10.5억 이하 59/84 실거래만 추림. 생활권·연식·면적 타협 가능성 확인.",
     },
 }
 
@@ -98,6 +105,16 @@ def default_months(today: date) -> list[str]:
     start_year = today.year - 1 if today.month <= 12 else today.year
     start_month = today.month
     return month_range(f"{start_year:04d}{start_month:02d}", f"{today.year:04d}{today.month:02d}")
+
+
+def trailing_months(today: date, count: int) -> list[str]:
+    current_index = today.year * 12 + today.month - 1
+    months: list[str] = []
+    for offset in range(count - 1, -1, -1):
+        index = current_index - offset
+        year, month_index = divmod(index, 12)
+        months.append(f"{year:04d}{month_index + 1:02d}")
+    return months
 
 
 def area_bucket(area_m2: float | None) -> str | None:
@@ -183,6 +200,112 @@ def load_market_observations(path: Path) -> dict[tuple[str, str, str], dict[str,
     return observations
 
 
+def load_blog_review_rows(path: Path, limit: int = 20) -> list[list[str]]:
+    if not path.exists():
+        return []
+
+    rows: list[list[str]] = []
+    with path.open("r", encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if (row.get("section") or "").strip() not in {
+                "new_build_top10",
+                "all_age_top10",
+            }:
+                continue
+            positive = (row.get("positive_keywords") or "-").strip()
+            negative = (row.get("negative_keywords") or "-").strip()
+            required = (row.get("required_keywords") or "-").strip()
+            titles = (row.get("sample_titles") or "-").strip()
+            if positive != "-":
+                summary = f"긍정: {positive[:80]}"
+            else:
+                summary = "긍정 신호 부족"
+            if negative != "-":
+                risk = f"주의: {negative[:80]}"
+            elif required != "-":
+                risk = f"확인: {required[:80]}"
+            else:
+                risk = "본문 정독 필요"
+            rows.append(
+                [
+                    (row.get("section") or "-").strip(),
+                    (row.get("complex_name") or "-").strip(),
+                    (row.get("area_bucket") or "-").strip(),
+                    (row.get("reviewed_count") or "0").strip(),
+                    (row.get("review_status") or "-").strip(),
+                    summary,
+                    risk,
+                    titles[:180],
+                ]
+            )
+            if len(rows) >= limit:
+                break
+    return rows
+
+
+def load_blog_analysis(
+    summary_path: Path, sources_path: Path
+) -> tuple[dict[tuple[str, str, str], dict[str, str]], dict[tuple[str, str, str], list[dict[str, str]]]]:
+    summaries: dict[tuple[str, str, str], dict[str, str]] = {}
+    sources: dict[tuple[str, str, str], list[dict[str, str]]] = defaultdict(list)
+
+    if summary_path.exists():
+        with summary_path.open("r", encoding="utf-8-sig", newline="") as file:
+            for row in csv.DictReader(file):
+                key = (
+                    (row.get("region") or "").strip(),
+                    (row.get("complex_name") or "").strip(),
+                    (row.get("area_bucket") or "").strip(),
+                )
+                if key[0] and key[1] and key[2] and key not in summaries:
+                    summaries[key] = dict(row)
+
+    if sources_path.exists():
+        with sources_path.open("r", encoding="utf-8-sig", newline="") as file:
+            for row in csv.DictReader(file):
+                key = (
+                    (row.get("region") or "").strip(),
+                    (row.get("complex_name") or "").strip(),
+                    (row.get("area_bucket") or "").strip(),
+                )
+                if key[0] and key[1] and key[2]:
+                    sources[key].append(dict(row))
+
+    return summaries, sources
+
+
+def load_naver_land_mappings(path: Path) -> dict[tuple[str, str, str], dict[str, Any]]:
+    if not path.exists():
+        return {}
+
+    mappings: dict[tuple[str, str, str], dict[str, Any]] = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            region = (row.get("region") or "").strip()
+            name = (row.get("complex_name") or "").strip()
+            area_value = parse_float(row.get("area_m2"))
+            bucket = area_bucket(area_value)
+            complex_number = (row.get("naver_complex_number") or "").strip()
+            pyeong_type_number = (row.get("pyeong_type_number") or "").strip()
+            if not region or not name or bucket is None:
+                continue
+            if complex_number.upper() == "TODO":
+                complex_number = ""
+            if pyeong_type_number.upper() == "TODO":
+                pyeong_type_number = ""
+            mappings[(region, name, bucket)] = {
+                "naver_complex_number": complex_number or None,
+                "naver_pyeong_type_number": pyeong_type_number or None,
+                "naver_real_estate_type": (row.get("real_estate_type") or "APT").strip(),
+                "naver_trade_type": (row.get("trade_type") or "A1").strip(),
+                "naver_source_url": (row.get("source_url") or "").strip() or None,
+                "naver_memo": (row.get("memo") or "").strip() or None,
+            }
+    return mappings
+
+
 def exclusion_reasons(metadata: dict[str, Any] | None) -> list[str]:
     if not metadata or metadata.get("exclude_override"):
         return []
@@ -190,11 +313,14 @@ def exclusion_reasons(metadata: dict[str, Any] | None) -> list[str]:
     reasons: list[str] = []
     household_count = metadata.get("household_count")
     if household_count is not None and household_count <= MAX_EXCLUDED_HOUSEHOLD_COUNT:
-        reasons.append("200세대 이하")
+        reasons.append(f"{MAX_EXCLUDED_HOUSEHOLD_COUNT}세대 이하")
 
     property_type = metadata.get("property_type")
     if property_type in EXCLUDED_PROPERTY_TYPES:
         reasons.append(f"제외 주거유형: {property_type}")
+    if property_type == "mixed_use_apartment" and household_count is not None:
+        if household_count < PREFERRED_MIN_HOUSEHOLD_COUNT:
+            reasons.append(f"{PREFERRED_MIN_HOUSEHOLD_COUNT}세대 미만 주상복합")
     return reasons
 
 
@@ -217,6 +343,104 @@ def fetch_trades_with_retry(
                 return []
             time.sleep(1.5 * attempt)
     return []
+
+
+def percentile(values: list[int], ratio: float) -> int | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * ratio
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    weight = position - lower
+    return round(ordered[lower] * (1 - weight) + ordered[upper] * weight)
+
+
+def fetch_five_year_histories(
+    *,
+    service_key: str,
+    candidates: list[dict[str, Any]],
+    months: list[str],
+    cache_path: Path = FIVE_YEAR_TRADE_CACHE_PATH,
+) -> dict[tuple[str, str, str, str], list[dict[str, Any]]]:
+    target_keys = {candidate_key(item) for item in candidates}
+    target_regions = {item["region"] for item in candidates}
+    histories: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    cache = load_json_cache(cache_path)
+    refresh_months = set(months[-2:])
+
+    for region_name in target_regions:
+        region = REGIONS[region_name]
+        for subregion, lawd_cd in region["lawd_codes"].items():
+            for month in months:
+                cache_key = f"{subregion}|{lawd_cd}|{month}"
+                if cache_key not in cache or month in refresh_months:
+                    cache[cache_key] = [
+                        asdict(trade)
+                        for trade in fetch_trades_with_retry(
+                            service_key=service_key,
+                            lawd_cd=lawd_cd,
+                            deal_ym=month,
+                        )
+                    ]
+                for trade in cache[cache_key]:
+                    bucket = area_bucket(trade.get("area_m2"))
+                    if bucket is None:
+                        continue
+                    key = (region_name, subregion, trade.get("apartment_name") or "", bucket)
+                    if key in target_keys and trade.get("price_krw"):
+                        histories[key].append(trade)
+
+    save_json_cache(cache_path, cache)
+    return histories
+
+
+def summarize_price_history(
+    trades: list[dict[str, Any]], *, recent_months: set[str]
+) -> dict[str, Any]:
+    prices = [int(item["price_krw"]) for item in trades if item.get("price_krw")]
+    recent_prices = [
+        int(item["price_krw"])
+        for item in trades
+        if item.get("price_krw") and item.get("deal_ym") in recent_months
+    ]
+    yearly: list[dict[str, Any]] = []
+    years = sorted({str(item.get("deal_ym") or "")[:4] for item in trades if item.get("deal_ym")})
+    for year in years:
+        year_prices = sorted(
+            int(item["price_krw"])
+            for item in trades
+            if item.get("price_krw") and str(item.get("deal_ym") or "").startswith(year)
+        )
+        if not year_prices:
+            continue
+        yearly.append(
+            {
+                "year": year,
+                "count": len(year_prices),
+                "min_price_krw": year_prices[0],
+                "median_price_krw": int(median(year_prices)),
+                "max_price_krw": year_prices[-1],
+            }
+        )
+
+    q25 = percentile(recent_prices, 0.25)
+    q50 = percentile(recent_prices, 0.50)
+    q75 = percentile(recent_prices, 0.75)
+    return {
+        "trade_count": len(prices),
+        "five_year_min_krw": min(prices) if prices else None,
+        "five_year_max_krw": max(prices) if prices else None,
+        "recent_12m_count": len(recent_prices),
+        "recent_12m_q25_krw": q25,
+        "recent_12m_median_krw": q50,
+        "recent_12m_q75_krw": q75,
+        "fair_price_low_krw": q25,
+        "fair_price_high_krw": q50,
+        "yearly": yearly,
+    }
 
 
 def kakao_get(path: str, *, rest_api_key: str, params: dict[str, Any]) -> dict[str, Any] | None:
@@ -334,10 +558,12 @@ def fetch_candidates(
     months: list[str],
     metadata_path: Path,
     observations_path: Path,
+    naver_land_path: Path,
 ) -> list[dict[str, Any]]:
     trades_by_complex: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
     metadata_by_complex = load_complex_metadata(metadata_path)
     observations_by_complex = load_market_observations(observations_path)
+    naver_mappings_by_complex = load_naver_land_mappings(naver_land_path)
 
     for region_name, region in REGIONS.items():
         for subregion, lawd_cd in region["lawd_codes"].items():
@@ -375,6 +601,10 @@ def fetch_candidates(
         observation = (
             observations_by_complex.get((subregion, name, bucket))
             or observations_by_complex.get((region_name, name, bucket))
+        )
+        naver_mapping = (
+            naver_mappings_by_complex.get((subregion, name, bucket))
+            or naver_mappings_by_complex.get((region_name, name, bucket))
         )
         reasons = exclusion_reasons(metadata)
         price_change_pct = round(((latest_price - min_price) / min_price) * 100, 1) if min_price else None
@@ -417,8 +647,19 @@ def fetch_candidates(
                 "inventory_count": observation.get("inventory_count") if observation else None,
                 "asking_source_url": observation.get("source_url") if observation else None,
                 "asking_verification_status": observation.get("verification_status") if observation else None,
+                "naver_complex_number": naver_mapping.get("naver_complex_number") if naver_mapping else None,
+                "naver_pyeong_type_number": (
+                    naver_mapping.get("naver_pyeong_type_number") if naver_mapping else None
+                ),
+                "naver_real_estate_type": (
+                    naver_mapping.get("naver_real_estate_type") if naver_mapping else "APT"
+                ),
+                "naver_trade_type": naver_mapping.get("naver_trade_type") if naver_mapping else "A1",
+                "naver_source_url": naver_mapping.get("naver_source_url") if naver_mapping else None,
                 "household_count": metadata.get("household_count") if metadata else None,
                 "property_type": metadata.get("property_type") if metadata else "unknown",
+                "metadata_source_url": metadata.get("source_url") if metadata else None,
+                "metadata_memo": metadata.get("memo") if metadata else None,
                 "excluded": bool(reasons),
                 "exclusion_reasons": reasons,
             }
@@ -426,9 +667,35 @@ def fetch_candidates(
     return candidates
 
 
-def score_candidate(item: dict[str, Any], *, older_friendly: bool = False) -> float:
+def station_walk_is_eligible(item: dict[str, Any], *, require_verified: bool) -> bool:
+    walk_minutes = item.get("station_walk_minutes")
+    if walk_minutes is None:
+        return not require_verified
+    return walk_minutes < MAX_STATION_WALK_MINUTES_EXCLUSIVE
+
+
+def new_build_is_eligible(item: dict[str, Any]) -> bool:
+    age_years = item.get("age_years")
+    return age_years is not None and age_years <= PREFERRED_MAX_AGE_YEARS
+
+
+def latest_trade_price_is_eligible(item: dict[str, Any]) -> bool:
+    latest_price = item.get("latest_price_krw")
+    return bool(latest_price and MIN_LATEST_TRADE_PRICE_KRW <= latest_price <= BUDGET_MAX_KRW)
+
+
+def score_candidate(
+    item: dict[str, Any],
+    *,
+    older_friendly: bool = False,
+    require_verified_station: bool = False,
+) -> float:
     latest_price = item["latest_price_krw"]
-    if item["excluded"] or latest_price > BUDGET_MAX_KRW:
+    if item["excluded"] or not latest_trade_price_is_eligible(item):
+        return -1_000
+    if item["household_count"] is None:
+        return -1_000
+    if not station_walk_is_eligible(item, require_verified=require_verified_station):
         return -1_000
 
     region_priority = REGIONS[item["region"]]["priority"]
@@ -483,10 +750,10 @@ def score_candidate(item: dict[str, Any], *, older_friendly: bool = False) -> fl
             score += 4
         elif walk_minutes <= 15:
             score += 2
-        elif walk_minutes <= 20:
-            score -= 2
+        elif walk_minutes < MAX_STATION_WALK_MINUTES_EXCLUSIVE:
+            score -= 14
         else:
-            score -= 12
+            score -= 45
 
     hoga_gap = asking_gap_pct(item)
     if hoga_gap is not None:
@@ -501,9 +768,15 @@ def score_candidate(item: dict[str, Any], *, older_friendly: bool = False) -> fl
     return round(score, 2)
 
 
-def score_seoul_plan(item: dict[str, Any]) -> float:
+def score_seoul_plan(item: dict[str, Any], *, require_verified_station: bool = False) -> float:
     latest_price = item["latest_price_krw"]
-    if item["region"] != "서울 판교 출퇴근권" or item["excluded"] or latest_price > BUDGET_MAX_KRW:
+    if (
+        item["region"] != "서울 판교 출퇴근권"
+        or item["excluded"]
+        or not latest_trade_price_is_eligible(item)
+    ):
+        return -1_000
+    if not station_walk_is_eligible(item, require_verified=require_verified_station):
         return -1_000
 
     score = 0.0
@@ -539,7 +812,7 @@ def score_seoul_plan(item: dict[str, Any]) -> float:
         elif household_count < PREFERRED_MIN_HOUSEHOLD_COUNT:
             score -= 2
     else:
-        score -= 6
+        score -= 10
 
     if item["price_position_pct"] >= 85:
         score -= 2
@@ -549,10 +822,10 @@ def score_seoul_plan(item: dict[str, Any]) -> float:
             score += 4
         elif walk_minutes <= 15:
             score += 2
-        elif walk_minutes <= 20:
-            score -= 2
+        elif walk_minutes < MAX_STATION_WALK_MINUTES_EXCLUSIVE:
+            score -= 14
         else:
-            score -= 12
+            score -= 45
 
     hoga_gap = asking_gap_pct(item)
     if hoga_gap is not None:
@@ -565,11 +838,65 @@ def score_seoul_plan(item: dict[str, Any]) -> float:
     return round(score, 2)
 
 
-def ranked(candidates: list[dict[str, Any]], *, older_friendly: bool = False) -> list[dict[str, Any]]:
+def score_small_household_candidate(
+    item: dict[str, Any], *, require_verified_station: bool = False
+) -> float:
+    latest_price = item["latest_price_krw"]
+    household_count = item.get("household_count")
+    if household_count is None or household_count > MAX_EXCLUDED_HOUSEHOLD_COUNT:
+        return -1_000
+    if not latest_trade_price_is_eligible(item):
+        return -1_000
+    if not station_walk_is_eligible(item, require_verified=require_verified_station):
+        return -1_000
+
+    region_priority = REGIONS[item["region"]]["priority"]
+    score = 0.0
+    score += {1: 28, 2: 16, 3: 8, 4: 5}.get(region_priority, 0)
+    score += 14 if latest_price <= BUDGET_REALISTIC_KRW else 6
+    score += 8 if item["area_bucket"] == "84" else 7
+    score += min(item["trade_count"], 20) * 0.35
+
+    built_year = item["built_year"] or 0
+    if built_year >= 2019:
+        score += 10
+    elif built_year >= 2014:
+        score += 8
+    elif built_year >= 2006:
+        score += 4
+
+    if item["price_position_pct"] >= 85:
+        score -= 2
+    walk_minutes = item.get("station_walk_minutes")
+    if walk_minutes is not None:
+        if walk_minutes <= 10:
+            score += 4
+        elif walk_minutes <= 15:
+            score += 2
+        elif walk_minutes < MAX_STATION_WALK_MINUTES_EXCLUSIVE:
+            score -= 14
+        else:
+            score -= 40
+
+    # This list is a watchlist, not a buy recommendation.
+    score -= 12
+    return round(score, 2)
+
+
+def ranked(
+    candidates: list[dict[str, Any]],
+    *,
+    older_friendly: bool = False,
+    require_verified_station: bool = False,
+) -> list[dict[str, Any]]:
     scored: list[dict[str, Any]] = []
     for item in candidates:
         copy = dict(item)
-        copy["score"] = score_candidate(copy, older_friendly=older_friendly)
+        copy["score"] = score_candidate(
+            copy,
+            older_friendly=older_friendly,
+            require_verified_station=require_verified_station,
+        )
         if copy["score"] < 0:
             continue
         scored.append(copy)
@@ -584,11 +911,45 @@ def ranked(candidates: list[dict[str, Any]], *, older_friendly: bool = False) ->
     )
 
 
-def ranked_seoul_plan(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def dedupe_by_complex(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    selected: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for item in items:
+        key = (item["region"], item["subregion"], item["name"])
+        if key not in selected:
+            selected[key] = item
+    return list(selected.values())
+
+
+def ranked_small_household(
+    candidates: list[dict[str, Any]], *, require_verified_station: bool = False
+) -> list[dict[str, Any]]:
     scored: list[dict[str, Any]] = []
     for item in candidates:
         copy = dict(item)
-        copy["score"] = score_seoul_plan(copy)
+        copy["score"] = score_small_household_candidate(
+            copy, require_verified_station=require_verified_station
+        )
+        if copy["score"] < 0:
+            continue
+        scored.append(copy)
+    return sorted(
+        scored,
+        key=lambda item: (
+            item["score"],
+            item["trade_count"],
+            -item["latest_price_krw"],
+        ),
+        reverse=True,
+    )
+
+
+def ranked_seoul_plan(
+    candidates: list[dict[str, Any]], *, require_verified_station: bool = False
+) -> list[dict[str, Any]]:
+    scored: list[dict[str, Any]] = []
+    for item in candidates:
+        copy = dict(item)
+        copy["score"] = score_seoul_plan(copy, require_verified_station=require_verified_station)
         if copy["score"] < 0:
             continue
         scored.append(copy)
@@ -607,7 +968,9 @@ def regional_top10(candidates: list[dict[str, Any]]) -> dict[str, list[dict[str,
     output: dict[str, list[dict[str, Any]]] = {}
     for region_name in REGIONS:
         region_candidates = [item for item in candidates if item["region"] == region_name]
-        output[region_name] = ranked(region_candidates)[:10]
+        output[region_name] = dedupe_by_complex(
+            ranked(region_candidates, require_verified_station=True)
+        )[:10]
     return output
 
 
@@ -615,16 +978,10 @@ def station_enrichment_pool(candidates: list[dict[str, Any]]) -> list[dict[str, 
     by_key = {candidate_key(item): item for item in candidates}
     selected: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 
-    for item in ranked(candidates)[:80]:
+    for item in ranked(candidates)[:120]:
         selected[candidate_key(item)] = by_key[candidate_key(item)]
-    for item in ranked(candidates, older_friendly=True)[:60]:
+    for item in ranked(candidates, older_friendly=True)[:120]:
         selected[candidate_key(item)] = by_key[candidate_key(item)]
-    for item in ranked_seoul_plan(candidates)[:80]:
-        selected[candidate_key(item)] = by_key[candidate_key(item)]
-    for region_name in REGIONS:
-        region_candidates = [item for item in candidates if item["region"] == region_name]
-        for item in ranked(region_candidates)[:30]:
-            selected[candidate_key(item)] = by_key[candidate_key(item)]
 
     return list(selected.values())
 
@@ -662,7 +1019,6 @@ def key_reason(item: dict[str, Any]) -> str:
     reasons.append(liquidity_label(item))
     reasons.append(price_position_label(item))
     reasons.append(station_preference_label(item))
-    reasons.append(asking_preference_label(item))
     reasons.append(scale_label(item))
     return " · ".join(reasons)
 
@@ -709,10 +1065,20 @@ def scale_label(item: dict[str, Any]) -> str:
     return "소규모 제외"
 
 
+def naver_land_status_label(item: dict[str, Any]) -> str:
+    complex_number = item.get("naver_complex_number")
+    pyeong_type_number = item.get("naver_pyeong_type_number")
+    if complex_number and pyeong_type_number:
+        return "관측 가능"
+    if complex_number:
+        return "평형번호 미매핑"
+    return "단지번호 미매핑"
+
+
 def asking_price_label(item: dict[str, Any]) -> str:
     asking_price = item.get("asking_price_krw")
     if asking_price is None:
-        return "조사 필요"
+        return "호가 미관측"
     observed_at = item.get("asking_observed_at")
     suffix = f"({observed_at})" if observed_at else ""
     return f"{won_eok(asking_price)}{suffix}"
@@ -728,7 +1094,7 @@ def asking_gap_label(item: dict[str, Any]) -> str:
 def inventory_label(item: dict[str, Any]) -> str:
     inventory_count = item.get("inventory_count")
     if inventory_count is None:
-        return "조사 필요"
+        return "매물수 미관측"
     return str(inventory_count)
 
 
@@ -754,15 +1120,15 @@ def station_preference_label(item: dict[str, Any]) -> str:
         return "초역세권"
     if walk_minutes <= 15:
         return "역세권"
-    if walk_minutes <= 20:
+    if walk_minutes < MAX_STATION_WALK_MINUTES_EXCLUSIVE:
         return "역 도보권"
-    return "역세권 약함"
+    return "순위 제외"
 
 
 def asking_preference_label(item: dict[str, Any]) -> str:
     gap = asking_gap_pct(item)
     if gap is None:
-        return "호가 조사 필요"
+        return "호가 미관측"
     if gap <= 0:
         return "호가 우호"
     if gap <= 5:
@@ -772,8 +1138,11 @@ def asking_preference_label(item: dict[str, Any]) -> str:
     return "호가 과열"
 
 
-def text(content: str, *, bold: bool = False) -> dict[str, Any]:
-    return {"type": "text", "text": {"content": content}, "annotations": {"bold": bold}}
+def text(content: str, *, bold: bool = False, href: str | None = None) -> dict[str, Any]:
+    text_payload: dict[str, Any] = {"content": content[:2000]}
+    if href:
+        text_payload["link"] = {"url": href}
+    return {"type": "text", "text": text_payload, "annotations": {"bold": bold}}
 
 
 def rich_text(content: str, *, bold: bool = False) -> list[dict[str, Any]]:
@@ -801,12 +1170,19 @@ def divider() -> dict[str, Any]:
     return {"object": "block", "type": "divider", "divider": {}}
 
 
-def table(headers: list[str], rows: list[list[str]]) -> dict[str, Any]:
+def table_cell(value: str | tuple[str, str], *, bold: bool = False) -> list[dict[str, Any]]:
+    if isinstance(value, tuple):
+        label, href = value
+        return [text(label, bold=bold, href=href)]
+    return [text(value, bold=bold)]
+
+
+def table(headers: list[str], rows: list[list[str | tuple[str, str]]]) -> dict[str, Any]:
     children = [
         {
             "object": "block",
             "type": "table_row",
-            "table_row": {"cells": [[text(cell, bold=True)] for cell in headers]},
+            "table_row": {"cells": [table_cell(cell, bold=True) for cell in headers]},
         }
     ]
     for row in rows:
@@ -814,7 +1190,7 @@ def table(headers: list[str], rows: list[list[str]]) -> dict[str, Any]:
             {
                 "object": "block",
                 "type": "table_row",
-                "table_row": {"cells": [[text(cell)] for cell in row]},
+                "table_row": {"cells": [table_cell(cell) for cell in row]},
             }
         )
     return {
@@ -829,11 +1205,14 @@ def table(headers: list[str], rows: list[list[str]]) -> dict[str, Any]:
     }
 
 
-def top_rows(items: list[dict[str, Any]]) -> list[list[str]]:
-    rows: list[list[str]] = []
+def top_rows(
+    items: list[dict[str, Any]],
+    *,
+    analysis_urls: dict[tuple[str, str, str, str], str] | None = None,
+) -> list[list[str | tuple[str, str]]]:
+    rows: list[list[str | tuple[str, str]]] = []
     for idx, item in enumerate(items, 1):
-        rows.append(
-            [
+        row: list[str | tuple[str, str]] = [
                 str(idx),
                 display_region(item),
                 item["name"],
@@ -841,9 +1220,6 @@ def top_rows(items: list[dict[str, Any]]) -> list[list[str]]:
                 str(item["built_year"] or "-"),
                 household_label(item),
                 won_eok(item["latest_price_krw"]),
-                asking_price_label(item),
-                asking_gap_label(item),
-                inventory_label(item),
                 station_label(item),
                 station_walk_label(item),
                 deal_date(item),
@@ -851,7 +1227,10 @@ def top_rows(items: list[dict[str, Any]]) -> list[list[str]]:
                 f"{item['price_position_pct']}%",
                 key_reason(item),
             ]
-        )
+        if analysis_urls is not None:
+            analysis_url = analysis_urls.get(candidate_key(item))
+            row.append(("전체 보기", analysis_url) if analysis_url else "미생성")
+        rows.append(row)
     return rows
 
 
@@ -866,15 +1245,35 @@ def regional_rows(items: list[dict[str, Any]]) -> list[list[str]]:
                 str(item["built_year"] or "-"),
                 household_label(item),
                 won_eok(item["latest_price_krw"]),
-                asking_price_label(item),
-                asking_gap_label(item),
-                inventory_label(item),
                 station_label(item),
                 station_walk_label(item),
                 deal_date(item),
                 item["budget_status"],
                 str(item["trade_count"]),
                 price_position_label(item),
+            ]
+        )
+    return rows
+
+
+def small_household_rows(items: list[dict[str, Any]]) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for idx, item in enumerate(items, 1):
+        rows.append(
+            [
+                str(idx),
+                display_region(item),
+                item["name"],
+                item["area_bucket"],
+                str(item["built_year"] or "-"),
+                household_label(item),
+                won_eok(item["latest_price_krw"]),
+                station_label(item),
+                station_walk_label(item),
+                deal_date(item),
+                str(item["trade_count"]),
+                price_position_label(item),
+                " · ".join(item.get("exclusion_reasons") or [f"{MAX_EXCLUDED_HOUSEHOLD_COUNT}세대 이하"]),
             ]
         )
     return rows
@@ -888,50 +1287,60 @@ def count_unknown_households(items: list[dict[str, Any]]) -> int:
     return sum(1 for item in items if item.get("household_count") is None)
 
 
-def count_unknown_asking(items: list[dict[str, Any]]) -> int:
-    return sum(1 for item in items if item.get("asking_price_krw") is None)
+def count_station_ineligible(items: list[dict[str, Any]]) -> int:
+    return sum(
+        1
+        for item in items
+        if item.get("station_walk_minutes") is None
+        or item["station_walk_minutes"] >= MAX_STATION_WALK_MINUTES_EXCLUSIVE
+    )
 
 
-def count_station_over_20(items: list[dict[str, Any]]) -> int:
-    return sum(1 for item in items if (item.get("station_walk_minutes") or 0) > 20)
-
-
-def insight_rows(final_top10: list[dict[str, Any]], seoul_top10: list[dict[str, Any]]) -> list[list[str]]:
-    final_suji_count = sum(1 for item in final_top10 if item["region"] == "용인 수지")
-    final_84_count = sum(1 for item in final_top10 if item["area_bucket"] == "84")
-    seoul_prices = [item["latest_price_krw"] for item in seoul_top10 if item["latest_price_krw"]]
-    seoul_median = int(median(seoul_prices)) if seoul_prices else None
-    unknown_scale_count = count_unknown_households(final_top10 + seoul_top10)
-
+def insight_rows(
+    new_build_top10: list[dict[str, Any]], all_age_top10: list[dict[str, Any]]
+) -> list[list[str]]:
     return [
-        ["최종 TOP10 수지 비중", f"{final_suji_count}/10", "출퇴근·선호지역 가중치 반영"],
-        ["최종 TOP10 84형 비중", f"{final_84_count}/10", "실거주 면적 안정성 확인"],
-        ["최근 고점권 후보", f"{count_price_high(final_top10)}/10", "호가 추격 주의"],
-        ["역 도보 20분 초과", f"{count_station_over_20(final_top10)}/10", "역세권 선호도 크게 하락"],
-        ["호가 미조사", f"{count_unknown_asking(final_top10)}/10", "최저호가·매물 수 보강 필요"],
-        ["서울 플랜 중위 실거래", won_eok(seoul_median), "서울 거주 시 면적·연식 타협 필요"],
-        ["세대수 미확인", f"{unknown_scale_count}/{len(final_top10) + len(seoul_top10)}", "단지 규모 데이터 보강 필요"],
+        ["신축 후보", str(len(new_build_top10)), "준공 12년 이하만 표시"],
+        ["구축 포함 후보", str(len(all_age_top10)), "연식 제한 없이 동일 기준 적용"],
+        [
+            "신축 84형 비중",
+            f"{sum(1 for item in new_build_top10 if item['area_bucket'] == '84')}/{len(new_build_top10)}",
+            "실거주 면적 안정성 확인",
+        ],
+        [
+            "최근 고점권 후보",
+            f"{count_price_high(all_age_top10)}/{len(all_age_top10)}",
+            "호가 추격 주의",
+        ],
+        [
+            "도보·세대수 하드필터 위반",
+            str(count_station_ineligible(new_build_top10 + all_age_top10)),
+            "도보 23분 이상·300세대 이하 제외",
+        ],
     ]
 
 
 def build_blocks(
     *,
     months: list[str],
-    final_top10: list[dict[str, Any]],
-    seoul_top10: list[dict[str, Any]],
-    region_tops: dict[str, list[dict[str, Any]]],
-    older_top10: list[dict[str, Any]],
+    new_build_top10: list[dict[str, Any]],
+    all_age_top10: list[dict[str, Any]],
+    blog_review_rows: list[list[str]] | None = None,
+    analysis_urls: dict[tuple[str, str, str, str], str] | None = None,
 ) -> list[dict[str, Any]]:
     start_month, end_month = months[0], months[-1]
     blocks: list[dict[str, Any]] = [
         callout(
             f"랭킹 기준: 국토부 실거래 {start_month[:4]}.{start_month[4:]}~{end_month[:4]}.{end_month[4:]}, "
-            "59/84형, 10.5억 이하. 역 도보는 카카오 로컬 직선거리 기반 추정, 호가는 별도 관측값 입력 시 반영.",
+            "59/84형, 최근 실거래 9억 이상 10.5억 이하. 역 도보는 카카오 로컬 직선거리 기반 추정. "
+            "동일 단지는 대표 평형 1개만 표시. 도보시간 미확인 또는 23분 이상, 300세대 이하는 제외. "
+            "호가와 매물 수는 네이버페이 부동산 관측 안정화 전까지 표와 순위 설명에서 제외.",
         ),
         heading("핵심 인사이트", 2),
-        table(["항목", "값", "해석"], insight_rows(final_top10, seoul_top10)),
+        table(["항목", "값", "해석"], insight_rows(new_build_top10, all_age_top10)),
         divider(),
-        heading("최종 TOP10", 2),
+        heading("최종 TOP10 · 신축만", 2),
+        paragraph("준공 12년 이하 단지만 대상으로 한 최종 후보입니다."),
         table(
             [
                 "순위",
@@ -941,21 +1350,19 @@ def build_blocks(
                 "연식",
                 "세대수",
                 "실거래",
-                "최저호가",
-                "호가갭",
-                "매물",
                 "가까운 역",
                 "역 도보",
                 "거래일",
                 "거래수",
                 "가격위치",
                 "판단 지표",
+                "상세 분석",
             ],
-            top_rows(final_top10),
+            top_rows(new_build_top10, analysis_urls=analysis_urls or {}),
         ),
         divider(),
-        heading("서울 거주 플랜 TOP10", 2),
-        paragraph("서울 거주를 우선할 때의 별도 후보군입니다. 같은 예산에서는 면적·연식·생활권 타협 가능성이 큽니다."),
+        heading("최종 TOP10 · 구축 포함", 2),
+        paragraph("연식 제한 없이 가격·거래량·입지·단지 규모를 함께 반영한 최종 후보입니다."),
         table(
             [
                 "순위",
@@ -965,84 +1372,168 @@ def build_blocks(
                 "연식",
                 "세대수",
                 "실거래",
-                "최저호가",
-                "호가갭",
-                "매물",
                 "가까운 역",
                 "역 도보",
                 "거래일",
                 "거래수",
                 "가격위치",
                 "판단 지표",
+                "상세 분석",
             ],
-            top_rows(seoul_top10),
+            top_rows(all_age_top10, analysis_urls=analysis_urls or {}),
         ),
         divider(),
-        heading("지역별 TOP10", 2),
+        heading("블로그 검토 현황", 2),
+        paragraph(
+            "네이버 블로그 검색 결과를 후보별 최소 10개 기준으로 수집하고, "
+            "제목/요약에서 긍정 신호와 리스크 신호를 추출합니다."
+        ),
+        table(
+            ["구분", "단지", "평형", "검토수", "상태", "블로그 요약", "리스크/확인", "근거 제목"],
+            blog_review_rows
+            or [["미생성", "블로그 검토 리포트 실행 필요", "-", "0", "미완료", "-", "-", "-"]],
+        ),
+        divider(),
+        heading("보강 필요 데이터", 2),
+        paragraph("실제 보행 경로, 주차/수리 리스크, 생활 인프라, 블로그/커뮤니티 근거."),
+        paragraph(
+            "출처: 국토교통부 실거래가 공개시스템 API, 카카오 로컬 API. "
+            "호가·매물 수는 네이버페이 부동산 관측 안정화 전까지 별도 수동 확인 대상으로 분리."
+        ),
+    ]
+    return blocks
+
+
+def blog_key(item: dict[str, Any]) -> tuple[str, str, str]:
+    return (item["region"], item["name"], item["area_bucket"])
+
+
+def price_assessment(item: dict[str, Any], analysis: dict[str, Any]) -> str:
+    latest = item["latest_price_krw"]
+    q25 = analysis.get("recent_12m_q25_krw")
+    q50 = analysis.get("recent_12m_median_krw")
+    q75 = analysis.get("recent_12m_q75_krw")
+    if not q25 or not q50 or not q75:
+        return "최근 12개월 비교 거래 부족"
+    if latest <= q25:
+        return "최근 거래 분포 하단: 가격 우호"
+    if latest <= q50:
+        return "최근 거래 중앙값 이하: 적정 검토"
+    if latest <= q75:
+        return "최근 거래 상단: 협상 필요"
+    return "최근 거래 75백분위 초과: 추격 주의"
+
+
+def detail_analysis_blocks(
+    *,
+    rank: int,
+    item: dict[str, Any],
+    price_analysis: dict[str, Any],
+    blog_summary: dict[str, str] | None,
+    blog_sources: list[dict[str, str]],
+    history_months: list[str],
+) -> list[dict[str, Any]]:
+    fair_low = price_analysis.get("fair_price_low_krw")
+    fair_high = price_analysis.get("fair_price_high_krw")
+    fair_range = (
+        f"{won_eok(fair_low)} ~ {won_eok(fair_high)}"
+        if fair_low is not None and fair_high is not None
+        else "비교 거래 부족"
+    )
+    basic_rows: list[list[str | tuple[str, str]]] = [
+        ["통합 순위", str(rank)],
+        ["지역 / 단지", f"{display_region(item)} / {item['name']}"],
+        ["대표 전용면적", f"{item['area_bucket']}㎡군 (최근 거래 {item['latest_area_m2']}㎡)"],
+        ["준공 / 연식", f"{item['built_year']}년 / {item['age_years']}년차"],
+        ["세대수 / 유형", f"{household_label(item)} / {item['property_type']}"],
+        ["최근 실거래", f"{won_eok(item['latest_price_krw'])} · {deal_date(item)} · {item['latest_floor']}층"],
+        ["최근 13개월", f"{item['trade_count']}건 · {won_eok(item['min_price_krw'])}~{won_eok(item['max_price_krw'])}"],
+        ["가격 위치", f"기간 내 {item['price_position_pct']}% · 저점 대비 {item['price_change_from_min_pct']}%"],
+        ["역 접근성", f"{station_label(item)} · {item['station_distance_m']}m · {station_walk_label(item)}"],
+        ["예산 / 금융 판단", f"{item['budget_status']} · {item['financing_recommendation']}"],
+        ["랭킹 점수", str(item["score"])],
+        ["메타데이터 메모", item.get("metadata_memo") or "-"],
     ]
 
-    for region_name, items in region_tops.items():
-        blocks.append(heading(region_name, 3))
-        blocks.append(paragraph(REGIONS[region_name]["memo"]))
-        if items:
-            blocks.append(
-                table(
-                    [
-                        "순위",
-                        "단지",
-                        "평형",
-                        "연식",
-                        "세대수",
-                        "실거래",
-                        "최저호가",
-                        "호가갭",
-                        "매물",
-                        "가까운 역",
-                        "역 도보",
-                        "거래일",
-                        "예산",
-                        "거래수",
-                        "가격위치",
-                    ],
-                    regional_rows(items),
-                )
-            )
-        else:
-            blocks.append(paragraph("10.5억 이하 59/84 실거래 후보 부족."))
-
-    blocks.extend(
+    yearly_rows: list[list[str]] = [
         [
-            divider(),
-            heading("구축 포함 TOP10", 2),
-            paragraph("연식 가점을 낮추고 가격·거래량·입지 우선순위를 더 반영한 후보군입니다."),
-            table(
-                [
-                    "순위",
-                    "지역",
-                    "단지",
-                    "평형",
-                    "연식",
-                    "세대수",
-                    "실거래",
-                    "최저호가",
-                    "호가갭",
-                    "매물",
-                    "가까운 역",
-                    "역 도보",
-                    "거래일",
-                    "거래수",
-                    "가격위치",
-                    "판단 지표",
-                ],
-                top_rows(older_top10),
-            ),
-            divider(),
-            heading("보강 필요 데이터", 2),
-            paragraph("최저호가, 매물 수, 세대수, 주거유형, 실제 보행 경로, 주차/수리 리스크, 생활 인프라."),
-            paragraph("출처: 국토교통부 실거래가 공개시스템 API, 카카오 로컬 API. 호가·매물 수·세대수는 별도 데이터 보강 대상."),
+            row["year"],
+            str(row["count"]),
+            won_eok(row["min_price_krw"]),
+            won_eok(row["median_price_krw"]),
+            won_eok(row["max_price_krw"]),
         ]
-    )
-    return blocks
+        for row in price_analysis.get("yearly", [])
+    ] or [["-", "0", "-", "-", "-"]]
+
+    price_rows = [
+        ["5년 전체 거래", str(price_analysis.get("trade_count") or 0), "동일 단지·동일 면적군"],
+        ["5년 저가~고가", f"{won_eok(price_analysis.get('five_year_min_krw'))} ~ {won_eok(price_analysis.get('five_year_max_krw'))}", "장기 변동 범위"],
+        ["최근 12개월 거래", str(price_analysis.get("recent_12m_count") or 0), "적정 가격선 표본"],
+        ["최근 12개월 25백분위", won_eok(price_analysis.get("recent_12m_q25_krw")), "협상 목표선"],
+        ["최근 12개월 중앙값", won_eok(price_analysis.get("recent_12m_median_krw")), "적정 상단"],
+        ["최근 12개월 75백분위", won_eok(price_analysis.get("recent_12m_q75_krw")), "추격 주의 기준"],
+        ["적정 매수가 구간", fair_range, "최근 12개월 25백분위~중앙값"],
+        ["현재 평가", price_assessment(item, price_analysis), "층·향·수리 상태는 별도 조정"],
+    ]
+
+    summary = blog_summary or {}
+    blog_summary_rows = [
+        ["검토 문서", summary.get("reviewed_count") or str(len(blog_sources))],
+        ["긍정 신호", summary.get("positive_keywords") or "유의미한 반복 신호 부족"],
+        ["단점·리스크", summary.get("negative_keywords") or "유의미한 반복 신호 부족"],
+        ["추가 확인", summary.get("required_keywords") or "본문 정독 및 임장 확인"],
+        ["검색어", summary.get("search_query") or f"{item['name']} 아파트 장점 단점"],
+    ]
+    blog_source_rows: list[list[str | tuple[str, str]]] = []
+    for source in blog_sources[:10]:
+        blog_source_rows.append(
+            [
+                source.get("rank") or "-",
+                (source.get("title") or "원문", source.get("url") or NAVER_BLOG_SOURCE_URL),
+                source.get("pub_date") or "-",
+                (source.get("description") or "-")[:350],
+                source.get("positive_keywords") or "-",
+                source.get("negative_keywords") or "-",
+            ]
+        )
+    if not blog_source_rows:
+        blog_source_rows = [["-", "수집 자료 없음", "-", "-", "-", "-"]]
+
+    source_rows: list[list[str | tuple[str, str]]] = [
+        ["실거래", ("국토교통부 실거래가 공개시스템", MOLIT_SOURCE_URL)],
+        ["세대수·단지유형", ("단지 메타데이터 원문", item.get("metadata_source_url") or MOLIT_SOURCE_URL)],
+        ["역 위치·거리", ("카카오 로컬 API", KAKAO_LOCAL_SOURCE_URL)],
+        ["블로그 검색", ("네이버 검색 API", NAVER_BLOG_SOURCE_URL)],
+    ]
+
+    return [
+        callout(
+            f"최종 후보 {rank}위 · {item['name']} · 최근 실거래 {won_eok(item['latest_price_krw'])} · "
+            f"적정 매수가 {fair_range}"
+        ),
+        heading("단지·거래 전체 데이터", 2),
+        table(["항목", "값"], basic_rows),
+        divider(),
+        heading("최근 5년 가격 분석", 2),
+        paragraph(
+            f"분석기간 {history_months[0][:4]}.{history_months[0][4:]}~{history_months[-1][:4]}.{history_months[-1][4:]}. "
+            "동일 단지·동일 전용면적군 실거래를 사용합니다. 적정 매수가는 최근 12개월 25백분위~중앙값이며 감정평가액이 아닙니다."
+        ),
+        table(["연도", "거래수", "최저", "중앙값", "최고"], yearly_rows),
+        table(["가격 지표", "값", "해석"], price_rows),
+        divider(),
+        heading("블로그 장단점 검토", 2),
+        table(["항목", "내용"], blog_summary_rows),
+        table(["순번", "원문", "작성일", "핵심 내용", "긍정", "부정"], blog_source_rows),
+        divider(),
+        heading("출처와 미수집 항목", 2),
+        table(["데이터", "출처"], source_rows),
+        paragraph(
+            "현재 자동화에서 호가·매물 수·실제 보행 경로·주차 체감·수리 상태는 확정 데이터가 아닙니다. "
+            "블로그 신호는 홍보성 글이 섞일 수 있어 임장 질문을 만드는 보조 근거로만 사용합니다."
+        ),
+    ]
 
 
 class Notion:
@@ -1061,12 +1552,18 @@ class Notion:
                 "Content-Type": "application/json",
             },
         )
-        try:
-            with urlopen(req, timeout=30) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Notion API failed: {exc.code} {detail}") from exc
+        for attempt in range(1, 4):
+            try:
+                with urlopen(req, timeout=60) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"Notion API failed: {exc.code} {detail}") from exc
+            except TimeoutError:
+                if attempt == 3:
+                    raise
+                time.sleep(2 * attempt)
+        raise RuntimeError("Notion API request failed.")
 
     def children(self, block_id: str) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
@@ -1080,25 +1577,89 @@ class Notion:
             cursor = data["next_cursor"]
 
     def archive_dashboard_blocks(self, page_id: str) -> None:
+        preserved_child_pages = {
+            "입력 정보 아카이브",
+            "자금·대출 시나리오",
+            "기흥역센트럴푸르지오 심층 분석",
+        }
         for block in self.children(page_id):
             block_type = block["type"]
-            # Keep the actual archive child page alive. Everything else is regenerated.
-            if block_type == "child_page" and block[block_type].get("title") == "입력 정보 아카이브":
+            # Keep manually managed reference pages alive. Everything else is regenerated.
+            if (
+                block_type == "child_page"
+                and block[block_type].get("title") in preserved_child_pages
+            ):
                 continue
-            self.request("PATCH", f"blocks/{block['id']}", {"archived": True})
+            endpoint = "pages" if block_type == "child_page" else "blocks"
+            self.request("PATCH", f"{endpoint}/{block['id']}", {"archived": True})
 
     def append_children(self, page_id: str, blocks: list[dict[str, Any]]) -> None:
         for start in range(0, len(blocks), 80):
             self.request("PATCH", f"blocks/{page_id}/children", {"children": blocks[start : start + 80]})
 
+    def create_child_page(
+        self, *, parent_page_id: str, title: str, blocks: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        page = self.request(
+            "POST",
+            "pages",
+            {
+                "parent": {"type": "page_id", "page_id": parent_page_id},
+                "properties": {"title": {"type": "title", "title": rich_text(title)}},
+                "children": blocks[:80],
+            },
+        )
+        if len(blocks) > 80:
+            self.append_children(page["id"], blocks[80:])
+        return page
+
+
+def publish_detail_analysis_pages(
+    *,
+    notion: Notion,
+    parent_page_id: str,
+    candidates: list[dict[str, Any]],
+    price_analyses: dict[tuple[str, str, str, str], dict[str, Any]],
+    blog_summaries: dict[tuple[str, str, str], dict[str, str]],
+    blog_sources: dict[tuple[str, str, str], list[dict[str, str]]],
+    history_months: list[str],
+) -> dict[tuple[str, str, str, str], str]:
+    urls: dict[tuple[str, str, str, str], str] = {}
+    index_page = notion.create_child_page(
+        parent_page_id=parent_page_id,
+        title="TOP10 후보 상세 분석",
+        blocks=[
+            callout(
+                "신축·구축 포함 TOP10 후보별 전체 데이터, 최근 5년 가격선, "
+                "블로그 10건 장단점과 원문 출처를 보관합니다."
+            )
+        ],
+    )
+    for rank, item in enumerate(candidates, 1):
+        key = candidate_key(item)
+        page = notion.create_child_page(
+            parent_page_id=index_page["id"],
+            title=f"{rank}. {item['name']} {item['area_bucket']}㎡ 전체 분석",
+            blocks=detail_analysis_blocks(
+                rank=rank,
+                item=item,
+                price_analysis=price_analyses.get(key, {}),
+                blog_summary=blog_summaries.get(blog_key(item)),
+                blog_sources=blog_sources.get(blog_key(item), []),
+                history_months=history_months,
+            ),
+        )
+        if page.get("url"):
+            urls[key] = page["url"]
+    return urls
+
 
 def write_outputs(
     *,
     candidates: list[dict[str, Any]],
-    final_top10: list[dict[str, Any]],
-    seoul_top10: list[dict[str, Any]],
-    region_tops: dict[str, list[dict[str, Any]]],
-    older_top10: list[dict[str, Any]],
+    new_build_top10: list[dict[str, Any]],
+    all_age_top10: list[dict[str, Any]],
+    price_analyses: dict[tuple[str, str, str, str], dict[str, Any]],
     output_path: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1106,10 +1667,11 @@ def write_outputs(
         "generated_date": date.today().isoformat(),
         "source": "MOLIT RTMS apartment trade API",
         "candidate_count": len(candidates),
-        "final_top10": final_top10,
-        "seoul_living_top10": seoul_top10,
-        "regional_top10": region_tops,
-        "older_included_top10": older_top10,
+        "new_build_top10": new_build_top10,
+        "all_age_top10": all_age_top10,
+        "five_year_price_analyses": {
+            "|".join(key): value for key, value in price_analyses.items()
+        },
     }
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -1119,9 +1681,13 @@ def main() -> None:
     parser.add_argument("--months", nargs="+", help="YYYYMM values. Defaults to same month last year through current month.")
     parser.add_argument("--metadata", type=Path, default=Path("data/manual/complex_metadata.csv"))
     parser.add_argument("--observations", type=Path, default=Path("data/manual/market_observations.csv"))
+    parser.add_argument("--naver-land", type=Path, default=Path("data/manual/naver_land_complexes.csv"))
+    parser.add_argument("--blog-review", type=Path, default=Path("data/processed/blog_review_summary.csv"))
+    parser.add_argument("--blog-sources", type=Path, default=Path("data/processed/blog_review_sources.csv"))
     parser.add_argument("--output", type=Path, default=Path("data/processed/recommendation_rankings.json"))
     parser.add_argument("--skip-notion", action="store_true")
     parser.add_argument("--skip-station-access", action="store_true")
+    parser.add_argument("--skip-five-year-analysis", action="store_true")
     args = parser.parse_args()
 
     env = read_env()
@@ -1135,23 +1701,44 @@ def main() -> None:
         months=months,
         metadata_path=args.metadata,
         observations_path=args.observations,
+        naver_land_path=args.naver_land,
     )
     if not args.skip_station_access:
         enrich_station_access(
             station_enrichment_pool(candidates),
             rest_api_key=env.get("KAKAO_REST_API_KEY"),
         )
-    final_top10 = ranked(candidates)[:10]
-    seoul_top10 = ranked_seoul_plan(candidates)[:10]
-    region_tops = regional_top10(candidates)
-    older_top10 = ranked(candidates, older_friendly=True)[:10]
+    new_build_candidates = [item for item in candidates if new_build_is_eligible(item)]
+    new_build_top10 = dedupe_by_complex(
+        ranked(new_build_candidates, require_verified_station=True)
+    )[:10]
+    all_age_top10 = dedupe_by_complex(
+        ranked(candidates, older_friendly=True, require_verified_station=True)
+    )[:10]
+    detail_candidates = dedupe_by_complex(new_build_top10 + all_age_top10)
+    blog_review_rows = load_blog_review_rows(args.blog_review)
+    blog_summaries, blog_sources = load_blog_analysis(args.blog_review, args.blog_sources)
+    history_months = trailing_months(date.today(), 60)
+    histories: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    if not args.skip_five_year_analysis:
+        histories = fetch_five_year_histories(
+            service_key=service_key,
+            candidates=detail_candidates,
+            months=history_months,
+        )
+    recent_months = set(history_months[-12:])
+    price_analyses = {
+        candidate_key(item): summarize_price_history(
+            histories.get(candidate_key(item), []), recent_months=recent_months
+        )
+        for item in detail_candidates
+    }
 
     write_outputs(
         candidates=candidates,
-        final_top10=final_top10,
-        seoul_top10=seoul_top10,
-        region_tops=region_tops,
-        older_top10=older_top10,
+        new_build_top10=new_build_top10,
+        all_age_top10=all_age_top10,
+        price_analyses=price_analyses,
         output_path=args.output,
     )
 
@@ -1162,20 +1749,32 @@ def main() -> None:
             raise SystemExit("NOTION_API_KEY and NOTION_PARENT_PAGE_ID are required in .env")
         notion = Notion(notion_key)
         notion.archive_dashboard_blocks(page_id)
+        analysis_urls = publish_detail_analysis_pages(
+            notion=notion,
+            parent_page_id=page_id,
+            candidates=detail_candidates,
+            price_analyses=price_analyses,
+            blog_summaries=blog_summaries,
+            blog_sources=blog_sources,
+            history_months=history_months,
+        )
         notion.append_children(
             page_id,
             build_blocks(
                 months=months,
-                final_top10=final_top10,
-                seoul_top10=seoul_top10,
-                region_tops=region_tops,
-                older_top10=older_top10,
+                new_build_top10=new_build_top10,
+                all_age_top10=all_age_top10,
+                blog_review_rows=blog_review_rows,
+                analysis_urls=analysis_urls,
             ),
         )
 
     print(
         json.dumps(
-            {"final_top10": final_top10, "seoul_living_top10": seoul_top10, "older_top10": older_top10},
+            {
+                "new_build_top10": new_build_top10,
+                "all_age_top10": all_age_top10,
+            },
             ensure_ascii=False,
             indent=2,
         )
