@@ -1584,6 +1584,7 @@ class Notion:
             "입지 선택 결론 | 기흥역 역세권 vs 수지 준역세권",
             "갈아타기 전략 | 기흥역 84㎡에서 성복역 84㎡로",
             "정책 분석 | 2026 기흥 토허·규제지역 지정",
+            "7/2 저녁임장",
         }
         for block in self.children(page_id):
             block_type = block["type"]
