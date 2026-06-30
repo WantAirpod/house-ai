@@ -20,7 +20,9 @@ collateral_rules:
   regulated_ltv_percent: 40
   first_time_homebuyer_ltv_percent: 70
   capital_region_purchase_mortgage_cap_krw: 600000000
-  note: "용인 기흥은 비규제, 용인 수지는 규제지역 기준. 생애최초 LTV 적용 여부는 은행 확인"
+  giheung_regulated_effective_date: "2026-07-01"
+  giheung_land_transaction_permit_effective_date: "2026-07-05"
+  note: "용인 기흥·수지는 규제지역 기준. 생애최초 LTV 70% 적용 여부는 은행 사전심사로 확인"
 
 cash_assumptions:
   stated_cash_krw: 280000000
