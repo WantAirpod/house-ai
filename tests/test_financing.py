@@ -148,6 +148,56 @@ def test_policy_thresholds_are_configurable() -> None:
     assert result["dsr_limit_percent"] == 25
 
 
+def test_non_regulated_ltv_is_capped_by_mortgage_policy_limit() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            purchase_price_krw=1_020_000_000,
+            ltv_ratio_percent=70,
+            mortgage_policy_cap_krw=600_000_000,
+        )
+    )
+
+    assert result["ltv_limit_krw"] == 714_000_000
+    assert result["mortgage_limit_krw"] == 600_000_000
+    assert result["effective_mortgage_krw"] == 600_000_000
+    assert result["mortgage_limit_excess_krw"] == 0
+
+
+def test_regulated_ltv_reduces_effective_mortgage_and_increases_credit_need() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            purchase_price_krw=1_020_000_000,
+            ltv_ratio_percent=40,
+            mortgage_policy_cap_krw=600_000_000,
+        )
+    )
+
+    assert result["ltv_limit_krw"] == 408_000_000
+    assert result["effective_mortgage_krw"] == 408_000_000
+    assert result["mortgage_limit_excess_krw"] == 192_000_000
+    assert result["required_credit_loan_krw"] == 262_000_000
+    assert result["mortgage_limit_exceeded"] is True
+
+
+def test_collateral_value_can_differ_from_purchase_price() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            purchase_price_krw=1_020_000_000,
+            collateral_value_krw=900_000_000,
+            ltv_ratio_percent=40,
+        )
+    )
+
+    assert result["collateral_value_krw"] == 900_000_000
+    assert result["ltv_limit_krw"] == 360_000_000
+    assert result["effective_mortgage_krw"] == 360_000_000
+
+
+def test_ltv_ratio_must_be_between_zero_and_one_hundred() -> None:
+    with pytest.raises(ValueError, match="LTV ratio"):
+        calculate_financing_scenario(FinancingScenarioInput(ltv_ratio_percent=101))
+
+
 def test_dsr_limit_reports_maximum_credit_and_purchase_price() -> None:
     result = calculate_financing_scenario(
         FinancingScenarioInput(

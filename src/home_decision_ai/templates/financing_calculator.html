@@ -168,7 +168,7 @@
       <div class="header-inner">
         <div>
           <h1>자금·대출 계산기</h1>
-          <div class="subtle">기흥 실거주 매수 · 기준일 2026-06-28</div>
+          <div class="subtle">기흥·수지 실거주 매수 · 기준일 2026-06-30</div>
         </div>
         <div class="header-actions">
           <button type="button" onclick="location.href='/financing-plan'">추천 자금 플랜</button>
@@ -224,8 +224,20 @@
                 <div class="input-wrap"><input id="combined_gross_income_krw" type="number" min="1" step="100"><span class="unit">만원</span></div>
               </div>
               <div class="field">
-                <label for="mortgage_amount_krw">주담대</label>
+                <label for="mortgage_amount_krw">희망 주담대</label>
                 <div class="input-wrap"><input id="mortgage_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="collateral_value_krw">담보평가액</label>
+                <div class="input-wrap"><input id="collateral_value_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="ltv_ratio_percent">LTV 한도율</label>
+                <div class="input-wrap"><input id="ltv_ratio_percent" type="number" min="0" max="100" step="1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="mortgage_policy_cap_krw">정책상 주담대 상한</label>
+                <div class="input-wrap"><input id="mortgage_policy_cap_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
               <div class="field">
                 <label for="mortgage_rate_percent">주담대 금리</label>
@@ -368,12 +380,27 @@
 
             <div class="table-wrap">
               <table>
-                <thead><tr><th>DSR 한도 가이드</th><th>금액</th></tr></thead>
+                <thead><tr><th>LTV·주담대 한도</th><th>값</th></tr></thead>
+                <tbody>
+                  <tr><td>적용 담보평가액</td><td id="collateral-value">-</td></tr>
+                  <tr><td>LTV 기준 한도</td><td id="ltv-limit">-</td></tr>
+                  <tr><td>정책상 주담대 상한</td><td id="mortgage-policy-cap">-</td></tr>
+                  <tr><td>최종 담보·정책 한도</td><td id="mortgage-limit">-</td></tr>
+                  <tr><td>실제 적용 주담대</td><td id="effective-mortgage-row">-</td></tr>
+                  <tr><td>희망 주담대 초과액</td><td id="mortgage-limit-excess">-</td></tr>
+                  <tr><td>실제 적용 LTV</td><td id="actual-ltv">-</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>DSR·LTV 한도 가이드</th><th>금액</th></tr></thead>
                 <tbody>
                   <tr><td>DSR 기준 최대 신용대출</td><td id="max-credit-by-dsr">-</td></tr>
                   <tr><td>현재 신용대출 초과액</td><td id="credit-excess">-</td></tr>
                   <tr><td>대신 추가할 현금</td><td id="cash-needed-by-dsr">-</td></tr>
-                  <tr><td>DSR 기준 최대 매매가</td><td id="max-price-by-dsr">-</td></tr>
+                  <tr><td>대출한도 기준 최대 매매가</td><td id="max-price-by-dsr">-</td></tr>
                   <tr><td>내려야 할 매매가</td><td id="price-excess">-</td></tr>
                 </tbody>
               </table>
@@ -419,7 +446,8 @@
     <script>
       const amountFields = new Set([
         "purchase_price_krw", "cash_krw", "lease_deposit_krw", "lease_loan_krw",
-        "combined_gross_income_krw", "mortgage_amount_krw", "family_loan_amount_krw",
+        "combined_gross_income_krw", "mortgage_amount_krw", "collateral_value_krw",
+        "mortgage_policy_cap_krw", "family_loan_amount_krw",
         "legal_cost_krw", "credit_stress_threshold_krw",
         "first_time_homebuyer_price_limit_krw", "first_time_acquisition_tax_discount_limit_krw"
       ]);
@@ -430,7 +458,7 @@
       ]);
       const stringFields = new Set(["family_loan_repayment_type"]);
       const fieldIds = [
-        ...amountFields, "mortgage_rate_percent", "mortgage_term_years",
+        ...amountFields, "ltv_ratio_percent", "mortgage_rate_percent", "mortgage_term_years",
         "mortgage_stress_rate_percent", "mortgage_stress_ratio_percent", "credit_rate_percent",
         "credit_term_years", "credit_stress_rate_percent", "family_loan_rate_percent",
         "family_loan_term_years", "family_loan_repayment_type",
@@ -443,7 +471,7 @@
       let latestResult = null;
       let debounceTimer = null;
       let lastAutoAdjustment = null;
-      const storageSchemaVersion = 2;
+      const storageSchemaVersion = 3;
 
       const won = value => `${Math.round(value).toLocaleString("ko-KR")}원`;
       const compactWon = value => {
@@ -515,6 +543,12 @@
           "cash-at-closing": result.cash_required_at_closing_krw,
           "available-cash": result.available_cash_krw,
           "cash-surplus": result.cash_surplus_krw,
+          "collateral-value": result.collateral_value_krw,
+          "ltv-limit": result.ltv_limit_krw,
+          "mortgage-policy-cap": result.mortgage_policy_cap_krw,
+          "mortgage-limit": result.mortgage_limit_krw,
+          "effective-mortgage-row": result.effective_mortgage_krw,
+          "mortgage-limit-excess": result.mortgage_limit_excess_krw,
           "max-credit-by-dsr": result.max_credit_loan_by_dsr_krw,
           "credit-excess": result.credit_loan_excess_krw,
           "cash-needed-by-dsr": result.credit_loan_excess_krw,
@@ -529,6 +563,7 @@
           "monthly-total": result.monthly_outflow_during_card_installment_krw
         };
         Object.entries(values).forEach(([id, value]) => document.getElementById(id).textContent = won(value));
+        document.getElementById("actual-ltv").textContent = `${result.actual_ltv_percent}%`;
         document.getElementById("tax-card-copy").textContent = won(result.acquisition_tax_krw);
         document.getElementById("broker-card-copy").textContent = won(result.brokerage_krw);
 
@@ -536,7 +571,7 @@
         warningList.innerHTML = "";
         result.warnings.forEach(message => {
           const item = document.createElement("div");
-          item.className = `warning-item${result.stress_dsr_percent >= result.dsr_limit_percent ? " danger" : ""}`;
+          item.className = `warning-item${result.stress_dsr_percent >= result.dsr_limit_percent || result.mortgage_limit_exceeded ? " danger" : ""}`;
           item.textContent = message;
           warningList.appendChild(item);
         });
@@ -567,7 +602,7 @@
             document.getElementById("purchase_price_krw").value =
               Math.floor(result.max_purchase_price_by_dsr_krw / 10000);
             lastAutoAdjustment =
-              `DSR ${result.dsr_limit_percent}% 한도 적용 · 매매가 ${compactWon(before)} → ` +
+              `DSR·LTV 한도 적용 · 매매가 ${compactWon(before)} → ` +
               `${compactWon(result.max_purchase_price_by_dsr_krw)}`;
             return calculate();
           }

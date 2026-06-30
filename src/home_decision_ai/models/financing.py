@@ -56,6 +56,9 @@ class FinancingScenarioInput:
     lease_equity_included_in_cash: bool = True
     combined_gross_income_krw: int = 150_000_000
     mortgage_amount_krw: int = 600_000_000
+    collateral_value_krw: int = 0
+    ltv_ratio_percent: float = 70.0
+    mortgage_policy_cap_krw: int = 600_000_000
     mortgage_rate_percent: float = 5.0
     mortgage_term_years: int = 30
     mortgage_stress_rate_percent: float = 3.0
@@ -112,6 +115,16 @@ def principal_for_annuity_payment(
     return monthly_payment_krw * (factor - 1) / (monthly_rate * factor)
 
 
+def _mortgage_limits(
+    values: FinancingScenarioInput, purchase_price_krw: int
+) -> tuple[int, int, int, int]:
+    collateral_value = values.collateral_value_krw or purchase_price_krw
+    ltv_limit = round(collateral_value * values.ltv_ratio_percent / 100)
+    policy_limit = values.mortgage_policy_cap_krw
+    effective_mortgage = min(values.mortgage_amount_krw, ltv_limit, policy_limit)
+    return collateral_value, ltv_limit, policy_limit, effective_mortgage
+
+
 def _required_credit_for_price(values: FinancingScenarioInput, purchase_price_krw: int) -> int:
     gross_tax = round(purchase_price_krw * values.acquisition_tax_rate_percent / 100)
     discount_applied = (
@@ -146,7 +159,8 @@ def _required_credit_for_price(values: FinancingScenarioInput, purchase_price_kr
     available_cash = values.cash_krw + (
         0 if values.lease_equity_included_in_cash else lease_equity
     )
-    non_credit_funds = available_cash + values.mortgage_amount_krw + values.family_loan_amount_krw
+    _, _, _, effective_mortgage = _mortgage_limits(values, purchase_price_krw)
+    non_credit_funds = available_cash + effective_mortgage + values.family_loan_amount_krw
     cash_required = purchase_price_krw + transaction_cost - card_total
     return max(0, round(cash_required - non_credit_funds))
 
@@ -173,6 +187,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         values.lease_loan_krw,
         values.combined_gross_income_krw,
         values.mortgage_amount_krw,
+        values.collateral_value_krw,
+        values.mortgage_policy_cap_krw,
         values.family_loan_amount_krw,
         values.legal_cost_krw,
         values.first_time_homebuyer_price_limit_krw,
@@ -187,6 +203,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         raise ValueError("lease loan cannot exceed lease deposit")
     if not 0 <= values.card_payment_ratio_percent <= 100:
         raise ValueError("card payment ratio must be between 0 and 100")
+    if not 0 <= values.ltv_ratio_percent <= 100:
+        raise ValueError("LTV ratio must be between 0 and 100")
     if values.family_loan_repayment_type not in {"bullet", "amortizing"}:
         raise ValueError("unsupported family loan repayment type")
 
@@ -234,14 +252,20 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     cash_required_at_closing = (
         values.purchase_price_krw + total_transaction_cost - card_payment_total
     )
-    non_credit_funds = available_cash + values.mortgage_amount_krw + values.family_loan_amount_krw
+    collateral_value, ltv_limit, mortgage_policy_cap, effective_mortgage = _mortgage_limits(
+        values, values.purchase_price_krw
+    )
+    mortgage_limit = min(ltv_limit, mortgage_policy_cap)
+    mortgage_limit_excess = max(0, values.mortgage_amount_krw - mortgage_limit)
+    actual_ltv = effective_mortgage / collateral_value * 100 if collateral_value else 0
+    non_credit_funds = available_cash + effective_mortgage + values.family_loan_amount_krw
     required_credit_loan = max(0, cash_required_at_closing - non_credit_funds)
     cash_surplus = max(0, non_credit_funds - cash_required_at_closing)
 
     mortgage_months = values.mortgage_term_years * 12
     credit_months = values.credit_term_years * 12
     mortgage_payment = annuity_payment(
-        values.mortgage_amount_krw, values.mortgage_rate_percent, mortgage_months
+        effective_mortgage, values.mortgage_rate_percent, mortgage_months
     )
     credit_payment = annuity_payment(
         required_credit_loan, values.credit_rate_percent, credit_months
@@ -280,7 +304,7 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         values.credit_stress_rate_percent if credit_stress_applied else 0
     )
     mortgage_stress_payment = annuity_payment(
-        values.mortgage_amount_krw, mortgage_stress_rate, mortgage_months
+        effective_mortgage, mortgage_stress_rate, mortgage_months
     )
     credit_stress_payment = annuity_payment(required_credit_loan, credit_stress_rate, credit_months)
     contract_dsr = (mortgage_payment + credit_payment) * 12 / values.combined_gross_income_krw * 100
@@ -328,6 +352,11 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     total_required = values.purchase_price_krw + total_transaction_cost
 
     warnings: list[str] = []
+    if mortgage_limit_excess > 0:
+        warnings.append(
+            f"희망 주담대가 LTV·정책 한도를 약 {mortgage_limit_excess:,}원 초과해 "
+            f"실제 자금에는 {effective_mortgage:,}원만 반영했습니다."
+        )
     if dsr_limit_exceeded:
         warnings.append(
             f"스트레스 DSR이 설정 한도 {values.dsr_limit_percent:g}%를 초과했습니다. "
@@ -392,6 +421,16 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "card_payment_ratio_percent": values.card_payment_ratio_percent,
         "card_payment_total_krw": round(card_payment_total),
         "cash_required_at_closing_krw": round(cash_required_at_closing),
+        "collateral_value_krw": collateral_value,
+        "ltv_ratio_percent": values.ltv_ratio_percent,
+        "ltv_limit_krw": ltv_limit,
+        "mortgage_policy_cap_krw": mortgage_policy_cap,
+        "mortgage_limit_krw": mortgage_limit,
+        "requested_mortgage_krw": values.mortgage_amount_krw,
+        "effective_mortgage_krw": effective_mortgage,
+        "mortgage_limit_excess_krw": mortgage_limit_excess,
+        "actual_ltv_percent": round(actual_ltv, 1),
+        "mortgage_limit_exceeded": mortgage_limit_excess > 0,
         "required_credit_loan_krw": round(required_credit_loan),
         "max_credit_loan_by_dsr_krw": max_credit_loan_krw,
         "credit_loan_excess_krw": round(credit_loan_excess),

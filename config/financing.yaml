@@ -1,5 +1,5 @@
 currency: KRW
-as_of: "2026-06-28"
+as_of: "2026-06-30"
 target_move_in: "2026-11"
 
 household_income:
@@ -13,6 +13,14 @@ current_lease:
   jeonse_loan_balance_krw: 0
   net_equity_krw: 0
   settlement_plan: "기본 계산에서 제외하고 사용자가 계산기에 직접 입력"
+
+collateral_rules:
+  collateral_value_mode: "사용자 입력, 0원이면 매매가 적용"
+  non_regulated_ltv_percent: 70
+  regulated_ltv_percent: 40
+  first_time_homebuyer_ltv_percent: 70
+  capital_region_purchase_mortgage_cap_krw: 600000000
+  note: "용인 기흥은 비규제, 용인 수지는 규제지역 기준. 생애최초 LTV 적용 여부는 은행 확인"
 
 cash_assumptions:
   stated_cash_krw: 280000000
@@ -91,6 +99,7 @@ decision_rules:
   - "내부 스트레스 DSR 39% 미만은 안정형, 39~40%는 경계형, 40% 초과는 제외한다."
   - "카드론, 현금서비스, 리볼빙으로 계약금·잔금·보증금 반환 지연을 충당하지 않는다."
   - "카드 결제한 취득세·중개보수·법무비는 신용대출 필요액에서 제외하되 카드 월 납입에는 포함한다."
+  - "실제 주담대는 희망액, 담보평가액×LTV, 정책상한, DSR 심사액 중 최솟값으로 확정한다."
 
 # TODO: 사용자가 입력한 전세보증금과 전세대출만 계산에 반영한다.
 # TODO: 실제 기존 부채와 마이너스통장 한도를 반영해 은행별 DSR을 갱신한다.

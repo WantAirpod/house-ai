@@ -20,6 +20,8 @@ def test_financing_calculator_page() -> None:
     assert response.status_code == 200
     assert "자금·대출 계산기" in response.text
     assert "생애최초 취득세 감면 가정" in response.text
+    assert "LTV 한도율" in response.text
+    assert "정책상 주담대 상한" in response.text
 
 
 def test_dashboard_is_a_clean_navigation_hub() -> None:

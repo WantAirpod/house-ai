@@ -20,6 +20,9 @@ class FinancingCalculatorRequest(BaseModel):
     lease_equity_included_in_cash: bool = True
     combined_gross_income_krw: int = Field(default=150_000_000, gt=0)
     mortgage_amount_krw: int = Field(default=600_000_000, ge=0)
+    collateral_value_krw: int = Field(default=0, ge=0)
+    ltv_ratio_percent: float = Field(default=70.0, ge=0, le=100)
+    mortgage_policy_cap_krw: int = Field(default=600_000_000, ge=0)
     mortgage_rate_percent: float = Field(default=5.0, ge=0)
     mortgage_term_years: int = Field(default=30, gt=0)
     mortgage_stress_rate_percent: float = Field(default=3.0, ge=0)
