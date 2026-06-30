@@ -1581,6 +1581,7 @@ class Notion:
             "입력 정보 아카이브",
             "자금·대출 시나리오",
             "기흥역센트럴푸르지오 심층 분석",
+            "입지 선택 결론 | 기흥역 역세권 vs 수지 준역세권",
         }
         for block in self.children(page_id):
             block_type = block["type"]
