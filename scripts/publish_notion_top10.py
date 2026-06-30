@@ -1582,6 +1582,7 @@ class Notion:
             "자금·대출 시나리오",
             "기흥역센트럴푸르지오 심층 분석",
             "입지 선택 결론 | 기흥역 역세권 vs 수지 준역세권",
+            "갈아타기 전략 | 기흥역 84㎡에서 성복역 84㎡로",
         }
         for block in self.children(page_id):
             block_type = block["type"]
