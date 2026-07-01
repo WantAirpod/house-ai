@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from notion_posting_hub import ensure_posting_hub
+from publish_notion_posting_hub import rebuild_hub
 from publish_notion_top10 import Notion, callout, divider, heading, paragraph, read_env, table
 
 PAGE_TITLE = "입지 선택 결론 | 기흥역 역세권 vs 수지 준역세권"
@@ -194,7 +196,9 @@ def main() -> None:
         raise SystemExit("NOTION_API_KEY and NOTION_PARENT_PAGE_ID are required")
 
     notion = Notion(api_key)
-    page = replace_existing_page(notion, parent_page_id, build_blocks())
+    posting_parent_id = ensure_posting_hub(notion, parent_page_id)
+    page = replace_existing_page(notion, posting_parent_id, build_blocks())
+    rebuild_hub(notion, posting_parent_id)
     print(page["url"])
 
 

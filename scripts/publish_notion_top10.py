@@ -1540,7 +1540,13 @@ class Notion:
     def __init__(self, api_key: str) -> None:
         self.api_key = api_key
 
-    def request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    def request(
+        self,
+        method: str,
+        path: str,
+        body: dict[str, Any] | None = None,
+        notion_version: str = "2022-06-28",
+    ) -> dict[str, Any]:
         data = json.dumps(body).encode("utf-8") if body is not None else None
         req = Request(
             f"https://api.notion.com/v1/{path}",
@@ -1548,7 +1554,7 @@ class Notion:
             method=method,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
-                "Notion-Version": "2022-06-28",
+                "Notion-Version": notion_version,
                 "Content-Type": "application/json",
             },
         )
@@ -1586,6 +1592,7 @@ class Notion:
             "정책 분석 | 2026 기흥 토허·규제지역 지정",
             "7/2 저녁임장",
             "2021 상승과 2022 하락장 | 원인·충격·재연 조건",
+            "리서치 포스팅",
         }
         for block in self.children(page_id):
             block_type = block["type"]
@@ -1630,6 +1637,9 @@ def publish_detail_analysis_pages(
     history_months: list[str],
 ) -> dict[tuple[str, str, str, str], str]:
     urls: dict[tuple[str, str, str, str], str] = {}
+    for block in notion.children(parent_page_id):
+        if block["type"] == "child_page" and block["child_page"].get("title") == "TOP10 후보 상세 분석":
+            notion.request("PATCH", f"pages/{block['id']}", {"archived": True})
     index_page = notion.create_child_page(
         parent_page_id=parent_page_id,
         title="TOP10 후보 상세 분석",
@@ -1753,16 +1763,22 @@ def main() -> None:
         if not notion_key or not page_id:
             raise SystemExit("NOTION_API_KEY and NOTION_PARENT_PAGE_ID are required in .env")
         notion = Notion(notion_key)
+        from notion_posting_hub import ensure_posting_hub
+
+        posting_parent_id = ensure_posting_hub(notion, page_id)
         notion.archive_dashboard_blocks(page_id)
         analysis_urls = publish_detail_analysis_pages(
             notion=notion,
-            parent_page_id=page_id,
+            parent_page_id=posting_parent_id,
             candidates=detail_candidates,
             price_analyses=price_analyses,
             blog_summaries=blog_summaries,
             blog_sources=blog_sources,
             history_months=history_months,
         )
+        from publish_notion_posting_hub import rebuild_hub
+
+        rebuild_hub(notion, posting_parent_id)
         notion.append_children(
             page_id,
             build_blocks(

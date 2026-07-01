@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from notion_posting_hub import ensure_posting_hub
+from publish_notion_posting_hub import rebuild_hub
 from publish_notion_top10 import Notion, callout, divider, heading, paragraph, read_env, table
 
 PAGE_TITLE = "2021 상승과 2022 하락장 | 원인·충격·재연 조건"
@@ -209,8 +211,10 @@ def main() -> None:
     if not api_key or not parent_page_id:
         raise SystemExit("NOTION_API_KEY and NOTION_PARENT_PAGE_ID are required")
     notion = Notion(api_key)
-    archive_existing_page(notion, parent_page_id)
-    page = notion.create_child_page(parent_page_id=parent_page_id, title=PAGE_TITLE, blocks=build_blocks())
+    posting_parent_id = ensure_posting_hub(notion, parent_page_id)
+    archive_existing_page(notion, posting_parent_id)
+    page = notion.create_child_page(parent_page_id=posting_parent_id, title=PAGE_TITLE, blocks=build_blocks())
+    rebuild_hub(notion, posting_parent_id)
     print(page["url"])
 
 
