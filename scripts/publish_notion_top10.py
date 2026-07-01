@@ -1585,6 +1585,7 @@ class Notion:
             "갈아타기 전략 | 기흥역 84㎡에서 성복역 84㎡로",
             "정책 분석 | 2026 기흥 토허·규제지역 지정",
             "7/2 저녁임장",
+            "2021 상승과 2022 하락장 | 원인·충격·재연 조건",
         }
         for block in self.children(page_id):
             block_type = block["type"]
