@@ -148,6 +148,31 @@ def test_policy_thresholds_are_configurable() -> None:
     assert result["dsr_limit_percent"] == 25
 
 
+def test_rough_credit_max_uses_lower_of_income_and_dsr_limits() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            combined_gross_income_krw=150_000_000,
+            credit_income_limit_ratio_percent=100,
+        )
+    )
+
+    assert result["rough_credit_income_limit_krw"] == 150_000_000
+    assert result["rough_credit_loan_max_krw"] == min(
+        150_000_000, result["max_credit_loan_by_dsr_krw"]
+    )
+
+
+def test_rough_credit_income_multiple_is_configurable() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            combined_gross_income_krw=150_000_000,
+            credit_income_limit_ratio_percent=80,
+        )
+    )
+
+    assert result["rough_credit_income_limit_krw"] == 120_000_000
+
+
 def test_non_regulated_ltv_is_capped_by_mortgage_policy_limit() -> None:
     result = calculate_financing_scenario(
         FinancingScenarioInput(

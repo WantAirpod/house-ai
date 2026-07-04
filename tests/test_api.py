@@ -25,6 +25,7 @@ def test_financing_calculator_page() -> None:
     assert "빠른 입력 · 직접 수정 가능" in response.text
     assert "DSR 초과 시 매매가 자동 조정" not in response.text
     assert "DSR 40% 이하 추천" in response.text
+    assert "러프한 신용대출 MAX" in response.text
 
 
 def test_dashboard_is_a_clean_navigation_hub() -> None:

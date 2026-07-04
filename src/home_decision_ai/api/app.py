@@ -29,6 +29,7 @@ class FinancingCalculatorRequest(BaseModel):
     mortgage_stress_ratio_percent: float = Field(default=40.0, ge=0, le=100)
     credit_rate_percent: float = Field(default=6.0, ge=0)
     credit_term_years: int = Field(default=7, gt=0)
+    credit_income_limit_ratio_percent: float = Field(default=100.0, ge=0)
     credit_stress_rate_percent: float = Field(default=1.5, ge=0)
     credit_stress_threshold_krw: int = Field(default=100_000_000, ge=0)
     family_loan_amount_krw: int = Field(default=70_000_000, ge=0)

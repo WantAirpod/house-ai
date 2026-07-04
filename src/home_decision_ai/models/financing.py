@@ -65,6 +65,7 @@ class FinancingScenarioInput:
     mortgage_stress_ratio_percent: float = 40.0
     credit_rate_percent: float = 6.0
     credit_term_years: int = 7
+    credit_income_limit_ratio_percent: float = 100.0
     credit_stress_rate_percent: float = 1.5
     credit_stress_threshold_krw: int = 100_000_000
     family_loan_amount_krw: int = 70_000_000
@@ -205,6 +206,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         raise ValueError("card payment ratio must be between 0 and 100")
     if not 0 <= values.ltv_ratio_percent <= 100:
         raise ValueError("LTV ratio must be between 0 and 100")
+    if values.credit_income_limit_ratio_percent < 0:
+        raise ValueError("credit income limit ratio cannot be negative")
     if values.family_loan_repayment_type not in {"bullet", "amortizing"}:
         raise ValueError("unsupported family loan repayment type")
 
@@ -342,6 +345,12 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     )
     # Keep a small won-level margin so floating-point inversion never lands just above the limit.
     max_credit_loan_krw = max(0, int(max_credit_loan) - 1_000)
+    rough_credit_income_limit = round(
+        values.combined_gross_income_krw
+        * values.credit_income_limit_ratio_percent
+        / 100
+    )
+    rough_credit_loan_max = min(rough_credit_income_limit, max_credit_loan_krw)
     credit_loan_excess = max(0, required_credit_loan - max_credit_loan_krw)
     max_purchase_price = _maximum_purchase_price(values, max_credit_loan_krw)
     purchase_price_excess = max(0, values.purchase_price_krw - max_purchase_price)
@@ -496,6 +505,10 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         warnings.append(
             "카드 결제분은 신용대출에서 제외했지만 카드 결제일까지 갚아야 하는 부채입니다."
         )
+    warnings.append(
+        "신용대출 러프 MAX는 부부합산소득을 계획용으로 단순 적용한 값입니다. "
+        "실제 한도는 배우자별 소득·기존 신용대출·신용점수·은행 내규로 각각 심사됩니다."
+    )
     if card_payment > combined_monthly_income(values) * 0.2:
         warnings.append("카드 월 납입액이 세전 월소득의 20%를 초과합니다.")
     if (
@@ -537,6 +550,9 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "mortgage_limit_exceeded": mortgage_limit_excess > 0,
         "required_credit_loan_krw": round(required_credit_loan),
         "max_credit_loan_by_dsr_krw": max_credit_loan_krw,
+        "rough_credit_income_limit_krw": rough_credit_income_limit,
+        "rough_credit_loan_max_krw": rough_credit_loan_max,
+        "credit_income_limit_ratio_percent": values.credit_income_limit_ratio_percent,
         "credit_loan_excess_krw": round(credit_loan_excess),
         "max_purchase_price_by_dsr_krw": round(max_purchase_price),
         "purchase_price_excess_krw": round(purchase_price_excess),
