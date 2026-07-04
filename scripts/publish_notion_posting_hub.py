@@ -17,10 +17,12 @@ POST_TITLES = {
     "신분당선 밖의 답 | 구성·보정이 의외의 1순위인 이유",
     "행원마을동아솔레시티 84㎡ | 실거주·가격·커뮤니티 심층 분석",
     "기흥센트럴푸르지오 202동 2406호 | 계약할 것인가",
+    "2026 하반기 매수 전략 | 9.65억 거래 불발 이후",
 }
 
 CATEGORIES = {
     "시장·정책": [
+        "2026 하반기 매수 전략 | 9.65억 거래 불발 이후",
         "2021 상승과 2022 하락장 | 원인·충격·재연 조건",
         "정책 분석 | 2026 기흥 토허·규제지역 지정",
     ],
@@ -40,6 +42,7 @@ CATEGORIES = {
 
 SUMMARIES = {
     "2021 상승과 2022 하락장 | 원인·충격·재연 조건": "과거 하락 원인과 2026~2028 시나리오",
+    "2026 하반기 매수 전략 | 9.65억 거래 불발 이후": "거래 불발 후 가격 상한과 기흥·수지 병행 전략",
     "신분당선 밖의 답 | 구성·보정이 의외의 1순위인 이유": "두 직장 통근과 플랫폼시티를 함께 잡는 숨은 생활권",
     "행원마을동아솔레시티 84㎡ | 실거주·가격·커뮤니티 심층 분석": "84㎡ 가격·통근·주차·노후 리스크와 18개 출처 검증",
     "기흥센트럴푸르지오 202동 2406호 | 계약할 것인가": "9.65억 가격·세입자 조기퇴거·4월 잔금 리스크 판단",
@@ -66,11 +69,11 @@ def rebuild_hub(notion: Notion, hub_id: str) -> None:
         if block["type"] != "child_page":
             notion.request("PATCH", f"blocks/{block['id']}", {"archived": True})
 
-    latest = "기흥센트럴푸르지오 202동 2406호 | 계약할 것인가"
+    latest = "2026 하반기 매수 전략 | 9.65억 거래 불발 이후"
     blocks = [
         callout("부동산 분석 글을 시장·정책, 입지·전략, 단지·임장 세 주제로 정리했습니다. 계산기와 입력 정보는 홈에서 관리합니다.", "📚"),
         heading("최신 포스팅", 2),
-        table(["게시일", "글", "핵심"], [["2026-07-01", (latest, page_url(pages[latest])), SUMMARIES[latest]]]),
+        table(["게시일", "글", "핵심"], [["2026-07-04", (latest, page_url(pages[latest])), SUMMARIES[latest]]]),
     ]
     for category, titles in CATEGORIES.items():
         rows = [[(title, page_url(pages[title])), SUMMARIES[title]] for title in titles if title in pages]
