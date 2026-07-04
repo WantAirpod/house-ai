@@ -135,6 +135,10 @@
       .warning-list { display: grid; gap: 8px; margin-top: 18px; }
       .warning-item { padding: 10px 12px; border-left: 3px solid var(--warning); background: var(--warning-soft); font-size: 12px; line-height: 1.5; }
       .warning-item.danger { border-color: var(--danger); background: var(--danger-soft); }
+      .recommendations { margin-top: 18px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+      .recommendations h3 { margin: 0; padding: 11px 12px; background: var(--surface-muted); font-size: 13px; }
+      .recommendation-list { display: grid; gap: 0; }
+      .recommendation-item { padding: 11px 12px; border-top: 1px solid #e8ebe8; font-size: 12px; line-height: 1.5; }
       .status-line { min-height: 20px; margin-top: 12px; color: var(--muted); font-size: 12px; }
       .error { color: var(--danger); }
       @media (max-width: 1050px) {
@@ -178,8 +182,9 @@
       </div>
     </header>
     <main>
-      <div class="price-strip" aria-label="매매가 빠른 선택">
-        <strong>매매가</strong>
+      <div class="price-strip" aria-label="매매가 빠른 입력">
+        <strong>빠른 입력 · 직접 수정 가능</strong>
+        <button class="price-button" type="button" data-price="965000000">9.65억</button>
         <button class="price-button" type="button" data-price="990000000">9.9억</button>
         <button class="price-button" type="button" data-price="1000000000">10.0억</button>
         <button class="price-button" type="button" data-price="1010000000">10.1억</button>
@@ -352,10 +357,6 @@
             </div>
             <div class="toggle-list">
               <div class="toggle-row">
-                <div class="toggle-copy"><strong>DSR 초과 시 매매가 자동 조정</strong><span>설정한 DSR 한도에 맞는 최대 매매가로 낮춤</span></div>
-                <input id="dsr_auto_limit_enabled" type="checkbox" checked>
-              </div>
-              <div class="toggle-row">
                 <div class="toggle-copy"><strong>생애최초 취득세 감면 가정</strong><span>본인·배우자 모두 과거 주택 소유 이력이 없을 때 선택</span></div>
                 <input id="first_time_homebuyer_eligible" type="checkbox">
               </div>
@@ -377,6 +378,11 @@
           <div class="result-body">
             <div class="dsr-row"><span>계약금리 DSR</span><div class="bar"><div class="bar-fill" id="contract-bar"></div></div><strong id="contract-dsr">-</strong></div>
             <div class="dsr-row"><span>스트레스 DSR</span><div class="bar"><div class="bar-fill" id="stress-bar"></div></div><strong id="stress-dsr-row">-</strong></div>
+
+            <section class="recommendations" aria-labelledby="recommendation-title">
+              <h3 id="recommendation-title">DSR 40% 이하 추천</h3>
+              <div class="recommendation-list" id="recommendation-list"></div>
+            </section>
 
             <div class="table-wrap">
               <table>
@@ -402,6 +408,9 @@
                   <tr><td>대신 추가할 현금</td><td id="cash-needed-by-dsr">-</td></tr>
                   <tr><td>대출한도 기준 최대 매매가</td><td id="max-price-by-dsr">-</td></tr>
                   <tr><td>내려야 할 매매가</td><td id="price-excess">-</td></tr>
+                  <tr><td>필요 은행 인정 연소득</td><td id="required-income-by-dsr">-</td></tr>
+                  <tr><td>현재 대비 소득 부족액</td><td id="income-shortfall-by-dsr">-</td></tr>
+                  <tr><td>현금 대체 시 최대 주담대</td><td id="max-mortgage-by-dsr">-</td></tr>
                 </tbody>
               </table>
             </div>
@@ -470,8 +479,7 @@
       let defaults = null;
       let latestResult = null;
       let debounceTimer = null;
-      let lastAutoAdjustment = null;
-      const storageSchemaVersion = 3;
+      const storageSchemaVersion = 4;
 
       const won = value => `${Math.round(value).toLocaleString("ko-KR")}원`;
       const compactWon = value => {
@@ -554,6 +562,9 @@
           "cash-needed-by-dsr": result.credit_loan_excess_krw,
           "max-price-by-dsr": result.max_purchase_price_by_dsr_krw,
           "price-excess": result.purchase_price_excess_krw,
+          "required-income-by-dsr": result.required_income_by_dsr_krw,
+          "income-shortfall-by-dsr": result.income_shortfall_by_dsr_krw,
+          "max-mortgage-by-dsr": result.max_mortgage_by_dsr_krw,
           "mortgage-monthly": result.mortgage_monthly_payment_krw,
           "credit-monthly": result.credit_monthly_payment_krw,
           "family-payment": result.family_monthly_payment_krw,
@@ -567,6 +578,15 @@
         document.getElementById("tax-card-copy").textContent = won(result.acquisition_tax_krw);
         document.getElementById("broker-card-copy").textContent = won(result.brokerage_krw);
 
+        const recommendationList = document.getElementById("recommendation-list");
+        recommendationList.innerHTML = "";
+        result.dsr_recommendations.forEach(message => {
+          const item = document.createElement("div");
+          item.className = "recommendation-item";
+          item.textContent = message;
+          recommendationList.appendChild(item);
+        });
+
         const warningList = document.getElementById("warning-list");
         warningList.innerHTML = "";
         result.warnings.forEach(message => {
@@ -575,9 +595,8 @@
           item.textContent = message;
           warningList.appendChild(item);
         });
-        document.getElementById("status-line").textContent = lastAutoAdjustment ||
-          `계산 완료 · 전세 순자금 ${compactWon(result.lease_equity_krw)}`;
-        lastAutoAdjustment = null;
+        document.getElementById("status-line").textContent =
+          `계산 완료 · 입력 매매가 유지 · 전세 순자금 ${compactWon(result.lease_equity_krw)}`;
         document.getElementById("status-line").className = "status-line";
         updatePriceButtons();
       }
@@ -592,20 +611,6 @@
           });
           if (!response.ok) throw new Error("입력값을 확인해 주세요.");
           const result = await response.json();
-          const autoLimit = document.getElementById("dsr_auto_limit_enabled").checked;
-          if (
-            autoLimit &&
-            result.dsr_limit_exceeded &&
-            result.max_purchase_price_by_dsr_krw < readForm().purchase_price_krw
-          ) {
-            const before = readForm().purchase_price_krw;
-            document.getElementById("purchase_price_krw").value =
-              Math.floor(result.max_purchase_price_by_dsr_krw / 10000);
-            lastAutoAdjustment =
-              `DSR·LTV 한도 적용 · 매매가 ${compactWon(before)} → ` +
-              `${compactWon(result.max_purchase_price_by_dsr_krw)}`;
-            return calculate();
-          }
           render(result);
           localStorage.setItem("home-decision-financing", JSON.stringify({
             ...readForm(),
@@ -653,7 +658,6 @@
         delete saved._schema_version;
         setForm({ ...defaults, ...saved });
         fieldIds.forEach(id => document.getElementById(id).addEventListener("input", queueCalculate));
-        document.getElementById("dsr_auto_limit_enabled").addEventListener("input", queueCalculate);
         document.querySelectorAll(".price-button").forEach(button => button.addEventListener("click", () => {
           document.getElementById("purchase_price_krw").value = Number(button.dataset.price) / 10000;
           calculate();

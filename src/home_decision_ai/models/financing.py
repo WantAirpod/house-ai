@@ -345,6 +345,110 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     credit_loan_excess = max(0, required_credit_loan - max_credit_loan_krw)
     max_purchase_price = _maximum_purchase_price(values, max_credit_loan_krw)
     purchase_price_excess = max(0, values.purchase_price_krw - max_purchase_price)
+    annual_dsr_capacity = values.combined_gross_income_krw * values.dsr_limit_percent / 100
+    annual_stress_debt_service = (mortgage_stress_payment + credit_stress_payment) * 12
+    required_income_by_dsr = (
+        annual_stress_debt_service / (values.dsr_limit_percent / 100)
+        if values.dsr_limit_percent > 0
+        else 0
+    )
+    income_shortfall_by_dsr = max(0, required_income_by_dsr - values.combined_gross_income_krw)
+
+    mortgage_payment_capacity = max(0, monthly_dsr_capacity - credit_stress_payment)
+    max_mortgage_by_dsr = principal_for_annuity_payment(
+        mortgage_payment_capacity, mortgage_stress_rate, mortgage_months
+    )
+    max_mortgage_by_dsr_krw = max(0, int(max_mortgage_by_dsr) - 1_000)
+    mortgage_excess_by_dsr = max(0, effective_mortgage - max_mortgage_by_dsr_krw)
+
+    minimum_mortgage_term_years_by_dsr: int | None = None
+    for candidate_years in range(values.mortgage_term_years, 51):
+        candidate_payment = annuity_payment(
+            effective_mortgage, mortgage_stress_rate, candidate_years * 12
+        )
+        candidate_dsr = (
+            (candidate_payment + credit_stress_payment)
+            * 12
+            / values.combined_gross_income_krw
+            * 100
+        )
+        if candidate_dsr <= values.dsr_limit_percent:
+            minimum_mortgage_term_years_by_dsr = candidate_years
+            break
+
+    max_mortgage_stress_ratio_by_dsr: float | None = None
+    dsr_with_no_mortgage_stress = (
+        (
+            annuity_payment(
+                effective_mortgage, values.mortgage_rate_percent, mortgage_months
+            )
+            + credit_stress_payment
+        )
+        * 12
+        / values.combined_gross_income_krw
+        * 100
+    )
+    if dsr_with_no_mortgage_stress <= values.dsr_limit_percent:
+        low_ratio = 0.0
+        high_ratio = 100.0
+        for _ in range(40):
+            middle_ratio = (low_ratio + high_ratio) / 2
+            candidate_rate = values.mortgage_rate_percent + (
+                values.mortgage_stress_rate_percent * middle_ratio / 100
+            )
+            candidate_payment = annuity_payment(
+                effective_mortgage, candidate_rate, mortgage_months
+            )
+            candidate_dsr = (
+                (candidate_payment + credit_stress_payment)
+                * 12
+                / values.combined_gross_income_krw
+                * 100
+            )
+            if candidate_dsr <= values.dsr_limit_percent:
+                low_ratio = middle_ratio
+            else:
+                high_ratio = middle_ratio
+        max_mortgage_stress_ratio_by_dsr = low_ratio
+
+    dsr_recommendations: list[str] = []
+    if dsr_limit_exceeded:
+        if credit_loan_excess > 0:
+            dsr_recommendations.append(
+                f"신용대출을 {credit_loan_excess:,.0f}원 줄이고 같은 금액을 현금·가격인하로 대체"
+            )
+        if income_shortfall_by_dsr > 0:
+            dsr_recommendations.append(
+                f"은행 인정 연소득을 최소 {required_income_by_dsr:,.0f}원 확보"
+                f"(현재 대비 {income_shortfall_by_dsr:,.0f}원 추가)"
+            )
+        if (
+            minimum_mortgage_term_years_by_dsr is not None
+            and minimum_mortgage_term_years_by_dsr > values.mortgage_term_years
+        ):
+            dsr_recommendations.append(
+                f"은행이 허용하면 주담대 만기를 최소 "
+                f"{minimum_mortgage_term_years_by_dsr}년으로 연장"
+            )
+        if (
+            max_mortgage_stress_ratio_by_dsr is not None
+            and max_mortgage_stress_ratio_by_dsr < values.mortgage_stress_ratio_percent
+        ):
+            dsr_recommendations.append(
+                "장기 고정형·주기형 상품으로 주담대 스트레스 반영률을 "
+                f"{max_mortgage_stress_ratio_by_dsr:.1f}% 이하로 낮출 수 있는지 확인"
+            )
+        if mortgage_excess_by_dsr > 0:
+            dsr_recommendations.append(
+                f"주담대 중 {mortgage_excess_by_dsr:,.0f}원을 추가 현금으로 대체하면 "
+                f"DSR 기준 주담대 {max_mortgage_by_dsr_krw:,.0f}원 이하"
+            )
+    else:
+        dsr_margin = max(0, annual_dsr_capacity - annual_stress_debt_service)
+        dsr_recommendations.append(
+            f"현재 입력은 DSR {values.dsr_limit_percent:g}% 이하이며 연간 원리금 여유는 "
+            f"약 {dsr_margin:,.0f}원"
+        )
     monthly_debt_payment = mortgage_payment + credit_payment + family_monthly_payment
     monthly_outflow_during_card_installment = (
         monthly_debt_payment + family_principal_reserve + card_payment
@@ -436,6 +540,19 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "credit_loan_excess_krw": round(credit_loan_excess),
         "max_purchase_price_by_dsr_krw": round(max_purchase_price),
         "purchase_price_excess_krw": round(purchase_price_excess),
+        "annual_dsr_capacity_krw": round(annual_dsr_capacity),
+        "annual_stress_debt_service_krw": round(annual_stress_debt_service),
+        "required_income_by_dsr_krw": round(required_income_by_dsr),
+        "income_shortfall_by_dsr_krw": round(income_shortfall_by_dsr),
+        "max_mortgage_by_dsr_krw": max_mortgage_by_dsr_krw,
+        "mortgage_excess_by_dsr_krw": round(mortgage_excess_by_dsr),
+        "minimum_mortgage_term_years_by_dsr": minimum_mortgage_term_years_by_dsr,
+        "max_mortgage_stress_ratio_by_dsr_percent": (
+            round(max_mortgage_stress_ratio_by_dsr, 1)
+            if max_mortgage_stress_ratio_by_dsr is not None
+            else None
+        ),
+        "dsr_recommendations": dsr_recommendations,
         "cash_surplus_krw": round(cash_surplus),
         "mortgage_monthly_payment_krw": round(mortgage_payment),
         "credit_monthly_payment_krw": round(credit_payment),

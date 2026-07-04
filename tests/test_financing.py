@@ -211,6 +211,36 @@ def test_dsr_limit_reports_maximum_credit_and_purchase_price() -> None:
     assert result["max_credit_loan_by_dsr_krw"] < result["required_credit_loan_krw"]
     assert result["max_purchase_price_by_dsr_krw"] < 1_030_000_000
     assert result["purchase_price_excess_krw"] > 0
+    assert result["required_income_by_dsr_krw"] > 150_000_000
+    assert result["income_shortfall_by_dsr_krw"] > 0
+    assert result["dsr_recommendations"]
+
+
+def test_dsr_recommendations_report_headroom_when_under_limit() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            purchase_price_krw=965_000_000,
+            cash_krw=380_000_000,
+            family_loan_amount_krw=0,
+        )
+    )
+
+    assert result["stress_dsr_percent"] < 40
+    assert result["income_shortfall_by_dsr_krw"] == 0
+    assert "이하" in result["dsr_recommendations"][0]
+
+
+def test_dsr_recommendations_can_suggest_a_longer_mortgage_term() -> None:
+    result = calculate_financing_scenario(
+        FinancingScenarioInput(
+            purchase_price_krw=1_030_000_000,
+            mortgage_term_years=30,
+            card_payment_ratio_percent=0,
+        )
+    )
+
+    suggested_term = result["minimum_mortgage_term_years_by_dsr"]
+    assert suggested_term is None or suggested_term >= 30
 
 
 def test_family_loan_bullet_repayment_only_counts_monthly_interest() -> None:
