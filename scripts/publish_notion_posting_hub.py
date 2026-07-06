@@ -21,6 +21,7 @@ POST_TITLES = {
     "2026 하반기 아파트 가격 전망 | 기흥·수지",
     "싸게 사서 비싸게 판다 | 부동산은 무엇이 다른가",
     "기흥 호가 급등 이후 | 새 후보 4곳 비교",
+    "용인 핵심 입지 점수 | 수지·구성보정·기흥",
 }
 
 CATEGORIES = {
@@ -31,6 +32,7 @@ CATEGORIES = {
         "정책 분석 | 2026 기흥 토허·규제지역 지정",
     ],
     "입지·전략": [
+        "용인 핵심 입지 점수 | 수지·구성보정·기흥",
         "싸게 사서 비싸게 판다 | 부동산은 무엇이 다른가",
         "신분당선 밖의 답 | 구성·보정이 의외의 1순위인 이유",
         "입지 선택 결론 | 기흥역 역세권 vs 수지 준역세권",
@@ -47,6 +49,7 @@ CATEGORIES = {
 }
 
 SUMMARIES = {
+    "용인 핵심 입지 점수 | 수지·구성보정·기흥": "일반 수요 기준 3개 권역과 7개 역의 입지 점수",
     "기흥 호가 급등 이후 | 새 후보 4곳 비교": "성복·만현·보정 4개 단지의 5년 실거래와 최종 순위",
     "싸게 사서 비싸게 판다 | 부동산은 무엇이 다른가": "실거주 효용·레버리지·거래비용을 포함한 매수 원칙",
     "2026 하반기 아파트 가격 전망 | 기흥·수지": "금리·규제·실수요를 반영한 지역별 시나리오와 매수 기준",
@@ -78,11 +81,11 @@ def rebuild_hub(notion: Notion, hub_id: str) -> None:
         if block["type"] != "child_page":
             notion.request("PATCH", f"blocks/{block['id']}", {"archived": True})
 
-    latest = "기흥 호가 급등 이후 | 새 후보 4곳 비교"
+    latest = "용인 핵심 입지 점수 | 수지·구성보정·기흥"
     blocks = [
         callout("부동산 분석 글을 시장·정책, 입지·전략, 단지·임장 세 주제로 정리했습니다. 계산기와 입력 정보는 홈에서 관리합니다.", "📚"),
         heading("최신 포스팅", 2),
-        table(["게시일", "글", "핵심"], [["2026-07-05", (latest, page_url(pages[latest])), SUMMARIES[latest]]]),
+        table(["게시일", "글", "핵심"], [["2026-07-06", (latest, page_url(pages[latest])), SUMMARIES[latest]]]),
     ]
     for category, titles in CATEGORIES.items():
         rows = [[(title, page_url(pages[title])), SUMMARIES[title]] for title in titles if title in pages]
