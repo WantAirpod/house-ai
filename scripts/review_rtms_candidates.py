@@ -24,7 +24,7 @@ EXCLUDED_PROPERTY_TYPES = {
     "non_apartment",
 }
 
-MAX_EXCLUDED_HOUSEHOLD_COUNT = 200
+MAX_EXCLUDED_HOUSEHOLD_COUNT = 300
 
 
 def read_env_value(name: str) -> str | None:

@@ -1,0 +1,3 @@
+region,complex_name,naver_complex_number,pyeong_type_number,area_m2,real_estate_type,trade_type,source_url,memo
+용인 수지,성복역 롯데캐슬 골드타운,TODO,TODO,84,APT,A1,https://fin.land.naver.com/,네이버페이 부동산 단지 URL에서 complex number 확인 후 입력
+용인 수지,e편한세상 수지,TODO,TODO,84,APT,A1,https://fin.land.naver.com/,평형별 pyeong type number는 fetch_naver_land_hoga.py --pyeong-list로 확인

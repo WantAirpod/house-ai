@@ -6,11 +6,11 @@ from scripts.review_rtms_candidates import exclusion_reasons, load_complex_metad
 def test_exclusion_reasons_for_small_officetel() -> None:
     reasons = exclusion_reasons(
         {"household_count": 180, "property_type": "officetel_apartment"},
-        max_excluded_household_count=200,
+        max_excluded_household_count=300,
         excluded_property_types={"officetel_apartment"},
     )
 
-    assert "200세대 이하" in reasons
+    assert "300세대 이하" in reasons
     assert "제외 주거유형: officetel_apartment" in reasons
 
 
@@ -21,7 +21,7 @@ def test_exclusion_override() -> None:
             "property_type": "officetel_apartment",
             "exclude_override": True,
         },
-        max_excluded_household_count=200,
+        max_excluded_household_count=300,
         excluded_property_types={"officetel_apartment"},
     )
 
@@ -31,7 +31,7 @@ def test_exclusion_override() -> None:
 def test_large_mixed_use_apartment_is_not_excluded_by_scale() -> None:
     reasons = exclusion_reasons(
         {"household_count": 550, "property_type": "mixed_use_apartment"},
-        max_excluded_household_count=200,
+        max_excluded_household_count=300,
         excluded_property_types={"officetel_apartment"},
     )
 

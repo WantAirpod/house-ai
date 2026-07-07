@@ -1,5 +1,9 @@
 # 기흥역센트럴푸르지오 202동 2406호, 계약할 것인가
 
+> **상태: 종료된 검토.** 9.65억원 거래는 성사되지 않았다. 현재 판단은
+> `second_half_2026_buy_strategy_2026-07-04.md`와
+> `alternative_complexes_after_giheung_price_jump_2026-07-05.md`를 우선한다.
+
 기준일: 2026-07-02
 
 ## 결론
