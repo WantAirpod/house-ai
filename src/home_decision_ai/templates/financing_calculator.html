@@ -109,6 +109,14 @@
                 <div class="input-wrap"><input id="spouse_verified_credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
               <div class="field">
+                <label for="card_installment_months">카드 할부개월</label>
+                <div class="input-wrap"><input id="card_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
+              </div>
+              <div class="field">
+                <label for="card_installment_rate_percent">카드 할부금리</label>
+                <div class="input-wrap"><input id="card_installment_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
                 <label for="room_deduction_amount_krw">방공제 금액</label>
                 <div class="input-wrap"><input id="room_deduction_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
@@ -153,6 +161,10 @@
                 <tr><td>와이프 확인 신용대출 한도</td><td id="spouse-verified-limit">-</td></tr>
                 <tr><td>와이프 신용대출 월 이자</td><td id="spouse-credit-interest">-</td></tr>
                 <tr><td>와이프 신용대출 5년 원리금</td><td id="spouse-credit-payment">-</td></tr>
+                <tr><td>주담대 월 원리금</td><td id="mortgage-monthly">-</td></tr>
+                <tr><td>부모 차용 월 이자</td><td id="family-interest-monthly">-</td></tr>
+                <tr><td>카드 할부 월 납입</td><td id="card-monthly">-</td></tr>
+                <tr><td><strong>카드기간 월 총 유출</strong></td><td id="total-monthly-outflow"><strong>-</strong></td></tr>
                 <tr><td>최종 부족금액</td><td id="individual-shortfall">-</td></tr>
                 <tr><td>적용 주담대</td><td id="effective-mortgage">-</td></tr>
                 <tr><td>카드 납부 총액</td><td id="card-total">-</td></tr>
@@ -197,7 +209,7 @@
       ]);
       const inputIds = [
         ...amountFields,
-        "spouse_verified_credit_rate_percent",
+        "spouse_verified_credit_rate_percent","card_installment_months","card_installment_rate_percent",
         "room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"
       ];
       const checkboxFields = new Set(["room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"]);
@@ -230,8 +242,6 @@
         card_brokerage: false,
         card_legal_cost: false,
         card_payment_ratio_percent: 100,
-        card_installment_months: 12,
-        card_installment_rate_percent: 0,
         dsr_warning_percent: 39,
         dsr_limit_percent: 40
       };
@@ -244,6 +254,8 @@
         spouse_gross_income_krw: 48000000,
         spouse_verified_credit_limit_krw: 60000000,
         spouse_verified_credit_rate_percent: 11.4,
+        card_installment_months: 12,
+        card_installment_rate_percent: 0,
         room_deduction_amount_krw: 48000000,
         room_deduction_enabled: false,
         card_acquisition_tax: true,
@@ -301,6 +313,9 @@
         const finalShortfallAmount = Math.max(0, result.required_credit_loan_krw - spouseCreditUsed);
         const spouseMonthlyInterest = spouseCreditUsed * form.spouse_verified_credit_rate_percent / 100 / 12;
         const spouseMonthlyPayment = annuity(spouseCreditUsed, form.spouse_verified_credit_rate_percent, 60);
+        const cardMonthlyPayment = annuity(result.card_payment_total_krw, form.card_installment_rate_percent, form.card_installment_months);
+        const familyMonthlyInterest = form.family_loan_amount_krw * 0.02 / 12;
+        const totalMonthlyOutflow = result.mortgage_monthly_payment_krw + spouseMonthlyPayment + familyMonthlyInterest + cardMonthlyPayment;
         document.getElementById("required-credit").textContent = compactWon(result.required_credit_loan_krw);
         const finalShortfall = document.getElementById("final-shortfall");
         finalShortfall.textContent = compactWon(finalShortfallAmount);
@@ -314,6 +329,10 @@
         document.getElementById("spouse-verified-limit").textContent = compactWon(spouseLimit);
         document.getElementById("spouse-credit-interest").textContent = compactWon(spouseMonthlyInterest);
         document.getElementById("spouse-credit-payment").textContent = compactWon(spouseMonthlyPayment);
+        document.getElementById("mortgage-monthly").textContent = compactWon(result.mortgage_monthly_payment_krw);
+        document.getElementById("family-interest-monthly").textContent = compactWon(familyMonthlyInterest);
+        document.getElementById("card-monthly").textContent = compactWon(cardMonthlyPayment);
+        document.getElementById("total-monthly-outflow").textContent = compactWon(totalMonthlyOutflow);
         document.getElementById("individual-shortfall").textContent = compactWon(finalShortfallAmount);
         document.getElementById("individual-shortfall").className = finalShortfallAmount > 0 ? "danger" : "ok";
         document.getElementById("card-total").textContent = compactWon(result.card_payment_total_krw);
