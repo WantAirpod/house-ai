@@ -61,7 +61,7 @@
       <div class="wrap header-inner">
         <div>
           <h1>기흥역센트럴푸르지오 잔금 계산기</h1>
-          <div class="subtle">203동 25층 · 매매가 10.17억 고정 · 개인별 DSR/신용대출 분리 계산</div>
+          <div class="subtle">203동 25층 · 매매가 10.17억 고정 · 내 주담대 DSR + 와이프 실제 신용대출 한도</div>
         </div>
         <button id="reset-button" type="button">기본값 복원</button>
       </div>
@@ -97,12 +97,12 @@
                 <div class="input-wrap"><input id="spouse_gross_income_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
               <div class="field">
-                <label for="borrower_mortgage_share_percent">내 주담대 DSR 배정</label>
-                <div class="input-wrap"><input id="borrower_mortgage_share_percent" type="number" min="0" max="100" step="10"><span class="unit">%</span></div>
+                <label for="spouse_verified_credit_limit_krw">와이프 확인 신용대출 한도</label>
+                <div class="input-wrap"><input id="spouse_verified_credit_limit_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
               <div class="field">
-                <label for="spouse_credit_income_limit_ratio_percent">와이프 신용대출 소득상한</label>
-                <div class="input-wrap"><input id="spouse_credit_income_limit_ratio_percent" type="number" min="0" step="10"><span class="unit">%</span></div>
+                <label for="spouse_verified_credit_rate_percent">와이프 확인 신용대출 금리</label>
+                <div class="input-wrap"><input id="spouse_verified_credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
               <div class="field">
                 <label for="room_deduction_amount_krw">방공제 금액</label>
@@ -129,8 +129,8 @@
           <div class="metrics">
             <div class="metric"><div class="metric-label">필요 신용대출</div><div class="metric-value" id="required-credit">-</div><div class="metric-note">카드 납부분 제외</div></div>
             <div class="metric"><div class="metric-label">최종 부족금액</div><div class="metric-value" id="final-shortfall">-</div><div class="metric-note" id="mortgage-note">개인별 한도 반영</div></div>
-            <div class="metric"><div class="metric-label">내 추천 신용대출</div><div class="metric-value" id="borrower-credit">-</div><div class="metric-note" id="borrower-dsr">-</div></div>
-            <div class="metric"><div class="metric-label">와이프 추천 신용대출</div><div class="metric-value" id="spouse-credit">-</div><div class="metric-note" id="spouse-dsr">-</div></div>
+            <div class="metric"><div class="metric-label">내 주담대 DSR</div><div class="metric-value" id="borrower-dsr-value">-</div><div class="metric-note">내 소득만 기준</div></div>
+            <div class="metric"><div class="metric-label">와이프 신용대출 사용</div><div class="metric-value" id="spouse-credit">-</div><div class="metric-note" id="spouse-credit-note">확인 한도 기준</div></div>
           </div>
           <div class="body">
             <table>
@@ -138,15 +138,13 @@
               <tbody id="case-table"></tbody>
             </table>
             <table>
-              <thead><tr><th>개인별 DSR 계산</th><th>금액/비율</th></tr></thead>
+              <thead><tr><th>대출 가능성 분리 계산</th><th>금액/비율</th></tr></thead>
               <tbody>
-                <tr><td>내 신용대출 가능액</td><td id="borrower-capacity">-</td></tr>
-                <tr><td>내 DSR 기준 가능액</td><td id="borrower-capacity-dsr">-</td></tr>
-                <tr><td>내 소득상한 기준 가능액</td><td id="borrower-capacity-income">-</td></tr>
-                <tr><td>와이프 신용대출 가능액</td><td id="spouse-capacity">-</td></tr>
-                <tr><td>와이프 DSR 기준 가능액</td><td id="spouse-capacity-dsr">-</td></tr>
-                <tr><td>와이프 소득상한 기준 가능액</td><td id="spouse-capacity-income">-</td></tr>
-                <tr><td>개인별 DSR 부족액</td><td id="individual-shortfall">-</td></tr>
+                <tr><td>내 주담대 DSR</td><td id="borrower-dsr">-</td></tr>
+                <tr><td>와이프 확인 신용대출 한도</td><td id="spouse-verified-limit">-</td></tr>
+                <tr><td>와이프 신용대출 월 이자</td><td id="spouse-credit-interest">-</td></tr>
+                <tr><td>와이프 신용대출 5년 원리금</td><td id="spouse-credit-payment">-</td></tr>
+                <tr><td>최종 부족금액</td><td id="individual-shortfall">-</td></tr>
                 <tr><td>적용 주담대</td><td id="effective-mortgage">-</td></tr>
                 <tr><td>카드 납부 총액</td><td id="card-total">-</td></tr>
                 <tr><td>잔금 시 현금 필요액</td><td id="cash-at-closing">-</td></tr>
@@ -162,11 +160,11 @@
     <script>
       const amountFields = new Set([
         "purchase_price_krw","mortgage_amount_krw","cash_krw","family_loan_amount_krw",
-        "borrower_gross_income_krw","spouse_gross_income_krw","room_deduction_amount_krw"
+        "borrower_gross_income_krw","spouse_gross_income_krw","spouse_verified_credit_limit_krw","room_deduction_amount_krw"
       ]);
       const inputIds = [
         ...amountFields,
-        "borrower_mortgage_share_percent","spouse_credit_income_limit_ratio_percent",
+        "spouse_verified_credit_rate_percent",
         "room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"
       ];
       const checkboxFields = new Set(["room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"]);
@@ -211,8 +209,8 @@
         family_loan_amount_krw: 65000000,
         borrower_gross_income_krw: 97400000,
         spouse_gross_income_krw: 48000000,
-        borrower_mortgage_share_percent: 100,
-        spouse_credit_income_limit_ratio_percent: 80,
+        spouse_verified_credit_limit_krw: 60000000,
+        spouse_verified_credit_rate_percent: 11.4,
         room_deduction_amount_krw: 48000000,
         room_deduction_enabled: false,
         card_acquisition_tax: true,
@@ -243,28 +241,40 @@
           }
         });
         payload.combined_gross_income_krw = payload.borrower_gross_income_krw + payload.spouse_gross_income_krw;
+        payload.borrower_mortgage_share_percent = 100;
         payload.borrower_credit_income_limit_ratio_percent = 100;
+        payload.spouse_credit_income_limit_ratio_percent = 0;
         return payload;
       }
+      function annuity(principal, annualRatePercent, months) {
+        if (principal <= 0) return 0;
+        const r = annualRatePercent / 100 / 12;
+        if (r === 0) return principal / months;
+        const f = Math.pow(1 + r, months);
+        return principal * r * f / (f - 1);
+      }
       function render(result) {
+        const form = readForm();
+        const spouseLimit = form.spouse_verified_credit_limit_krw;
+        const spouseCreditUsed = Math.min(result.required_credit_loan_krw, spouseLimit);
+        const finalShortfallAmount = Math.max(0, result.required_credit_loan_krw - spouseCreditUsed);
+        const spouseMonthlyInterest = spouseCreditUsed * form.spouse_verified_credit_rate_percent / 100 / 12;
+        const spouseMonthlyPayment = annuity(spouseCreditUsed, form.spouse_verified_credit_rate_percent, 60);
         document.getElementById("required-credit").textContent = compactWon(result.required_credit_loan_krw);
         const finalShortfall = document.getElementById("final-shortfall");
-        finalShortfall.textContent = compactWon(result.individual_credit_shortfall_krw);
-        finalShortfall.className = `metric-value ${result.individual_credit_shortfall_krw > 0 ? "danger" : "ok"}`;
+        finalShortfall.textContent = compactWon(finalShortfallAmount);
+        finalShortfall.className = `metric-value ${finalShortfallAmount > 0 ? "danger" : "ok"}`;
         document.getElementById("effective-mortgage").textContent = compactWon(result.effective_mortgage_krw);
         document.getElementById("mortgage-note").textContent = `방공제 ${compactWon(result.room_deduction_applied_krw)}`;
-        document.getElementById("borrower-credit").textContent = compactWon(result.borrower_suggested_credit_krw);
-        document.getElementById("spouse-credit").textContent = compactWon(result.spouse_suggested_credit_krw);
-        document.getElementById("borrower-dsr").textContent = `DSR ${result.borrower_stress_dsr_percent}%`;
-        document.getElementById("spouse-dsr").textContent = `DSR ${result.spouse_stress_dsr_percent}%`;
-        document.getElementById("borrower-capacity").textContent = compactWon(result.borrower_credit_capacity_krw);
-        document.getElementById("spouse-capacity").textContent = compactWon(result.spouse_credit_capacity_krw);
-        document.getElementById("borrower-capacity-dsr").textContent = compactWon(result.borrower_credit_capacity_by_dsr_krw);
-        document.getElementById("borrower-capacity-income").textContent = compactWon(result.borrower_credit_capacity_by_income_krw);
-        document.getElementById("spouse-capacity-dsr").textContent = compactWon(result.spouse_credit_capacity_by_dsr_krw);
-        document.getElementById("spouse-capacity-income").textContent = compactWon(result.spouse_credit_capacity_by_income_krw);
-        document.getElementById("individual-shortfall").textContent = compactWon(result.individual_credit_shortfall_krw);
-        document.getElementById("individual-shortfall").className = result.individual_credit_shortfall_krw > 0 ? "danger" : "ok";
+        document.getElementById("borrower-dsr-value").textContent = `${result.borrower_stress_dsr_percent}%`;
+        document.getElementById("spouse-credit").textContent = compactWon(spouseCreditUsed);
+        document.getElementById("spouse-credit-note").textContent = `한도 ${compactWon(spouseLimit)} · 금리 ${form.spouse_verified_credit_rate_percent}%`;
+        document.getElementById("borrower-dsr").textContent = `${result.borrower_stress_dsr_percent}%`;
+        document.getElementById("spouse-verified-limit").textContent = compactWon(spouseLimit);
+        document.getElementById("spouse-credit-interest").textContent = compactWon(spouseMonthlyInterest);
+        document.getElementById("spouse-credit-payment").textContent = compactWon(spouseMonthlyPayment);
+        document.getElementById("individual-shortfall").textContent = compactWon(finalShortfallAmount);
+        document.getElementById("individual-shortfall").className = finalShortfallAmount > 0 ? "danger" : "ok";
         document.getElementById("card-total").textContent = compactWon(result.card_payment_total_krw);
         document.getElementById("cash-at-closing").textContent = compactWon(result.cash_required_at_closing_krw);
         document.getElementById("acquisition-tax").textContent = compactWon(result.acquisition_tax_krw);
@@ -280,7 +290,7 @@
         warnings.innerHTML = "";
         result.warnings.forEach(message => {
           const div = document.createElement("div");
-          div.className = `warning${result.individual_credit_shortfall_krw > 0 || result.dsr_limit_exceeded ? " danger" : ""}`;
+          div.className = `warning${finalShortfallAmount > 0 || result.dsr_limit_exceeded ? " danger" : ""}`;
           div.textContent = message;
           warnings.appendChild(div);
         });
