@@ -40,6 +40,8 @@
       .metric-label { color:var(--muted); font-size:12px; }
       .metric-value { margin-top:8px; font-size:20px; font-weight:760; white-space:nowrap; }
       .metric-note { margin-top:6px; color:var(--muted); font-size:11px; line-height:1.35; }
+      .metric-value.danger { color:var(--danger); }
+      .metric-value.ok { color:var(--accent); }
       table { width:100%; border-collapse:collapse; margin-top:16px; }
       th, td { padding:10px 8px; border-bottom:1px solid #e8ebe8; text-align:left; font-size:13px; }
       th { background:#f0f2ee; color:var(--muted); font-weight:650; }
@@ -126,7 +128,7 @@
           <h2>계산 결과</h2>
           <div class="metrics">
             <div class="metric"><div class="metric-label">필요 신용대출</div><div class="metric-value" id="required-credit">-</div><div class="metric-note">카드 납부분 제외</div></div>
-            <div class="metric"><div class="metric-label">적용 주담대</div><div class="metric-value" id="effective-mortgage">-</div><div class="metric-note" id="mortgage-note">-</div></div>
+            <div class="metric"><div class="metric-label">최종 부족금액</div><div class="metric-value" id="final-shortfall">-</div><div class="metric-note" id="mortgage-note">개인별 한도 반영</div></div>
             <div class="metric"><div class="metric-label">내 추천 신용대출</div><div class="metric-value" id="borrower-credit">-</div><div class="metric-note" id="borrower-dsr">-</div></div>
             <div class="metric"><div class="metric-label">와이프 추천 신용대출</div><div class="metric-value" id="spouse-credit">-</div><div class="metric-note" id="spouse-dsr">-</div></div>
           </div>
@@ -145,6 +147,7 @@
                 <tr><td>와이프 DSR 기준 가능액</td><td id="spouse-capacity-dsr">-</td></tr>
                 <tr><td>와이프 소득상한 기준 가능액</td><td id="spouse-capacity-income">-</td></tr>
                 <tr><td>개인별 DSR 부족액</td><td id="individual-shortfall">-</td></tr>
+                <tr><td>적용 주담대</td><td id="effective-mortgage">-</td></tr>
                 <tr><td>카드 납부 총액</td><td id="card-total">-</td></tr>
                 <tr><td>잔금 시 현금 필요액</td><td id="cash-at-closing">-</td></tr>
                 <tr><td>취득세</td><td id="acquisition-tax">-</td></tr>
@@ -245,6 +248,9 @@
       }
       function render(result) {
         document.getElementById("required-credit").textContent = compactWon(result.required_credit_loan_krw);
+        const finalShortfall = document.getElementById("final-shortfall");
+        finalShortfall.textContent = compactWon(result.individual_credit_shortfall_krw);
+        finalShortfall.className = `metric-value ${result.individual_credit_shortfall_krw > 0 ? "danger" : "ok"}`;
         document.getElementById("effective-mortgage").textContent = compactWon(result.effective_mortgage_krw);
         document.getElementById("mortgage-note").textContent = `방공제 ${compactWon(result.room_deduction_applied_krw)}`;
         document.getElementById("borrower-credit").textContent = compactWon(result.borrower_suggested_credit_krw);
