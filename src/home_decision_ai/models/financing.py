@@ -56,18 +56,21 @@ class FinancingScenarioInput:
     lease_loan_krw: int = 0
     lease_equity_included_in_cash: bool = True
     combined_gross_income_krw: int = 145_400_000
+    borrower_gross_income_krw: int = 97_400_000
+    spouse_gross_income_krw: int = 48_000_000
+    borrower_mortgage_share_percent: float = 100.0
     mortgage_amount_krw: int = 600_000_000
     collateral_value_krw: int = 0
     ltv_ratio_percent: float = 70.0
     mortgage_policy_cap_krw: int = 600_000_000
     room_deduction_enabled: bool = False
     room_deduction_amount_krw: int = 48_000_000
-    mortgage_rate_percent: float = 5.0
-    mortgage_term_years: int = 30
+    mortgage_rate_percent: float = 4.7
+    mortgage_term_years: int = 40
     mortgage_stress_rate_percent: float = 3.0
     mortgage_stress_ratio_percent: float = 40.0
-    credit_rate_percent: float = 6.0
-    credit_term_years: int = 7
+    credit_rate_percent: float = 6.5
+    credit_term_years: int = 5
     credit_income_limit_ratio_percent: float = 100.0
     credit_stress_rate_percent: float = 1.5
     credit_stress_threshold_krw: int = 100_000_000
@@ -192,6 +195,41 @@ def _closing_case_summary(
     }
 
 
+def _individual_credit_capacity(
+    *,
+    income_krw: int,
+    allocated_mortgage_stress_payment_krw: float,
+    values: FinancingScenarioInput,
+    credit_months: int,
+) -> int:
+    monthly_dsr_capacity = income_krw * values.dsr_limit_percent / 100 / 12
+    monthly_credit_capacity = max(0, monthly_dsr_capacity - allocated_mortgage_stress_payment_krw)
+    base_credit_capacity = principal_for_annuity_payment(
+        monthly_credit_capacity, values.credit_rate_percent, credit_months
+    )
+    stressed_credit_capacity = principal_for_annuity_payment(
+        monthly_credit_capacity,
+        values.credit_rate_percent + values.credit_stress_rate_percent,
+        credit_months,
+    )
+    threshold_supported = (
+        annuity_payment(
+            values.credit_stress_threshold_krw,
+            values.credit_rate_percent,
+            credit_months,
+        )
+        <= monthly_credit_capacity
+    )
+    max_credit = max(
+        min(base_credit_capacity, values.credit_stress_threshold_krw),
+        values.credit_stress_threshold_krw if threshold_supported else 0,
+        stressed_credit_capacity
+        if stressed_credit_capacity > values.credit_stress_threshold_krw
+        else 0,
+    )
+    return max(0, int(max_credit) - 1_000)
+
+
 def _required_credit_for_price(values: FinancingScenarioInput, purchase_price_krw: int) -> int:
     gross_tax = round(purchase_price_krw * values.acquisition_tax_rate_percent / 100)
     discount_applied = (
@@ -253,6 +291,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         values.lease_deposit_krw,
         values.lease_loan_krw,
         values.combined_gross_income_krw,
+        values.borrower_gross_income_krw,
+        values.spouse_gross_income_krw,
         values.mortgage_amount_krw,
         values.collateral_value_krw,
         values.mortgage_policy_cap_krw,
@@ -275,6 +315,8 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         raise ValueError("LTV ratio must be between 0 and 100")
     if values.credit_income_limit_ratio_percent < 0:
         raise ValueError("credit income limit ratio cannot be negative")
+    if not 0 <= values.borrower_mortgage_share_percent <= 100:
+        raise ValueError("borrower mortgage share must be between 0 and 100")
     if values.family_loan_repayment_type not in {"bullet", "amortizing"}:
         raise ValueError("unsupported family loan repayment type")
 
@@ -490,6 +532,70 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
                 high_ratio = middle_ratio
         max_mortgage_stress_ratio_by_dsr = low_ratio
 
+    borrower_mortgage_share = values.borrower_mortgage_share_percent / 100
+    spouse_mortgage_share = 1 - borrower_mortgage_share
+    borrower_allocated_mortgage_payment = mortgage_stress_payment * borrower_mortgage_share
+    spouse_allocated_mortgage_payment = mortgage_stress_payment * spouse_mortgage_share
+    borrower_credit_capacity = _individual_credit_capacity(
+        income_krw=values.borrower_gross_income_krw,
+        allocated_mortgage_stress_payment_krw=borrower_allocated_mortgage_payment,
+        values=values,
+        credit_months=credit_months,
+    )
+    spouse_credit_capacity = _individual_credit_capacity(
+        income_krw=values.spouse_gross_income_krw,
+        allocated_mortgage_stress_payment_krw=spouse_allocated_mortgage_payment,
+        values=values,
+        credit_months=credit_months,
+    )
+    spouse_suggested_credit = min(required_credit_loan, spouse_credit_capacity)
+    borrower_suggested_credit = min(
+        max(0, required_credit_loan - spouse_suggested_credit), borrower_credit_capacity
+    )
+    individual_credit_shortfall = max(
+        0, required_credit_loan - spouse_suggested_credit - borrower_suggested_credit
+    )
+    borrower_stress_dsr = (
+        (
+            borrower_allocated_mortgage_payment
+            + annuity_payment(
+                borrower_suggested_credit,
+                values.credit_rate_percent
+                + (
+                    values.credit_stress_rate_percent
+                    if borrower_suggested_credit > values.credit_stress_threshold_krw
+                    else 0
+                ),
+                credit_months,
+            )
+        )
+        * 12
+        / values.borrower_gross_income_krw
+        * 100
+        if values.borrower_gross_income_krw > 0
+        else 0
+    )
+    spouse_stress_dsr = (
+        (
+            spouse_allocated_mortgage_payment
+            + annuity_payment(
+                spouse_suggested_credit,
+                values.credit_rate_percent
+                + (
+                    values.credit_stress_rate_percent
+                    if spouse_suggested_credit > values.credit_stress_threshold_krw
+                    else 0
+                ),
+                credit_months,
+            )
+        )
+        * 12
+        / values.spouse_gross_income_krw
+        * 100
+        if values.spouse_gross_income_krw > 0
+        else 0
+    )
+
     dsr_recommendations: list[str] = []
     if dsr_limit_exceeded:
         if credit_loan_excess > 0:
@@ -563,6 +669,11 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         warnings.append(
             f"DSR 한도에 맞추려면 신용대출을 약 {credit_loan_excess:,}원 줄여야 합니다. "
             "같은 금액의 현금을 추가하거나 매매가를 낮춰야 합니다."
+        )
+    if individual_credit_shortfall > 0:
+        warnings.append(
+            f"개인별 DSR 기준으로는 필요 신용대출 중 약 {individual_credit_shortfall:,}원이 부족합니다. "
+            "주담대 분담, 현금 추가, 카드납부, 부모 차용 확대를 다시 조정해야 합니다."
         )
     if values.first_time_homebuyer_eligible and not first_time_discount_applied:
         warnings.append("매매가가 12억원을 초과해 생애최초 취득세 감면을 적용하지 않았습니다.")
@@ -673,6 +784,16 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "dsr_warning_percent": values.dsr_warning_percent,
         "dsr_limit_percent": values.dsr_limit_percent,
         "combined_monthly_income_krw": round(combined_monthly_income(values)),
+        "borrower_gross_income_krw": values.borrower_gross_income_krw,
+        "spouse_gross_income_krw": values.spouse_gross_income_krw,
+        "borrower_mortgage_share_percent": values.borrower_mortgage_share_percent,
+        "borrower_credit_capacity_krw": borrower_credit_capacity,
+        "spouse_credit_capacity_krw": spouse_credit_capacity,
+        "borrower_suggested_credit_krw": round(borrower_suggested_credit),
+        "spouse_suggested_credit_krw": round(spouse_suggested_credit),
+        "individual_credit_shortfall_krw": round(individual_credit_shortfall),
+        "borrower_stress_dsr_percent": round(borrower_stress_dsr, 1),
+        "spouse_stress_dsr_percent": round(spouse_stress_dsr, 1),
         "warnings": warnings,
         "closing_case_summaries": [
             _closing_case_summary(
