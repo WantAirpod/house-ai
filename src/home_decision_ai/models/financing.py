@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from math import isfinite
 
 
@@ -49,16 +50,18 @@ def classify_price(price_krw: int, bands: list[FinancingBand] | None = None) -> 
 
 @dataclass(frozen=True)
 class FinancingScenarioInput:
-    purchase_price_krw: int = 990_000_000
-    cash_krw: int = 280_000_000
+    purchase_price_krw: int = 1_017_000_000
+    cash_krw: int = 290_000_000
     lease_deposit_krw: int = 0
     lease_loan_krw: int = 0
     lease_equity_included_in_cash: bool = True
-    combined_gross_income_krw: int = 150_000_000
+    combined_gross_income_krw: int = 145_400_000
     mortgage_amount_krw: int = 600_000_000
     collateral_value_krw: int = 0
     ltv_ratio_percent: float = 70.0
     mortgage_policy_cap_krw: int = 600_000_000
+    room_deduction_enabled: bool = False
+    room_deduction_amount_krw: int = 48_000_000
     mortgage_rate_percent: float = 5.0
     mortgage_term_years: int = 30
     mortgage_stress_rate_percent: float = 3.0
@@ -68,21 +71,21 @@ class FinancingScenarioInput:
     credit_income_limit_ratio_percent: float = 100.0
     credit_stress_rate_percent: float = 1.5
     credit_stress_threshold_krw: int = 100_000_000
-    family_loan_amount_krw: int = 70_000_000
+    family_loan_amount_krw: int = 65_000_000
     family_loan_rate_percent: float = 4.6
     family_loan_term_years: int = 10
     family_loan_repayment_type: str = "bullet"
     family_principal_reserve_enabled: bool = False
     acquisition_tax_rate_percent: float = 3.3
-    first_time_homebuyer_eligible: bool = False
+    first_time_homebuyer_eligible: bool = True
     first_time_homebuyer_price_limit_krw: int = 1_200_000_000
     first_time_acquisition_tax_discount_limit_krw: int = 2_000_000
     local_education_tax_discount_ratio_percent: float = 10.0
     brokerage_rate_percent: float = 0.55
     legal_cost_krw: int = 2_000_000
     card_acquisition_tax: bool = True
-    card_brokerage: bool = True
-    card_legal_cost: bool = True
+    card_brokerage: bool = False
+    card_legal_cost: bool = False
     card_payment_ratio_percent: float = 100.0
     card_installment_months: int = 12
     card_installment_rate_percent: float = 0.0
@@ -122,8 +125,71 @@ def _mortgage_limits(
     collateral_value = values.collateral_value_krw or purchase_price_krw
     ltv_limit = round(collateral_value * values.ltv_ratio_percent / 100)
     policy_limit = values.mortgage_policy_cap_krw
-    effective_mortgage = min(values.mortgage_amount_krw, ltv_limit, policy_limit)
+    base_limit = min(ltv_limit, policy_limit)
+    room_deduction = values.room_deduction_amount_krw if values.room_deduction_enabled else 0
+    adjusted_limit = max(0, base_limit - room_deduction)
+    effective_mortgage = min(values.mortgage_amount_krw, adjusted_limit)
     return collateral_value, ltv_limit, policy_limit, effective_mortgage
+
+
+def _closing_case_summary(
+    values: FinancingScenarioInput,
+    *,
+    label: str,
+    room_deduction_enabled: bool,
+    card_acquisition_tax: bool,
+) -> dict[str, object]:
+    scenario = replace(
+        values,
+        room_deduction_enabled=room_deduction_enabled,
+        card_acquisition_tax=card_acquisition_tax,
+    )
+    gross_tax = round(scenario.purchase_price_krw * scenario.acquisition_tax_rate_percent / 100)
+    discount_applied = (
+        scenario.first_time_homebuyer_eligible
+        and scenario.purchase_price_krw <= scenario.first_time_homebuyer_price_limit_krw
+    )
+    acquisition_discount = (
+        min(
+            round(
+                gross_tax / (1 + scenario.local_education_tax_discount_ratio_percent / 100)
+            ),
+            scenario.first_time_acquisition_tax_discount_limit_krw,
+        )
+        if discount_applied
+        else 0
+    )
+    education_discount = round(
+        acquisition_discount * scenario.local_education_tax_discount_ratio_percent / 100
+    )
+    net_tax = max(0, gross_tax - acquisition_discount - education_discount)
+    brokerage = round(scenario.purchase_price_krw * scenario.brokerage_rate_percent / 100)
+    card_ratio = scenario.card_payment_ratio_percent / 100
+    card_total = sum(
+        (
+            round(net_tax * card_ratio) if scenario.card_acquisition_tax else 0,
+            round(brokerage * card_ratio) if scenario.card_brokerage else 0,
+            round(scenario.legal_cost_krw * card_ratio) if scenario.card_legal_cost else 0,
+        )
+    )
+    _, _, _, effective_mortgage = _mortgage_limits(scenario, scenario.purchase_price_krw)
+    transaction_cost = net_tax + brokerage + scenario.legal_cost_krw
+    cash_required = scenario.purchase_price_krw + transaction_cost - card_total
+    non_credit_funds = (
+        scenario.cash_krw + effective_mortgage + scenario.family_loan_amount_krw
+    )
+    required_credit = max(0, round(cash_required - non_credit_funds))
+    room_deduction = scenario.room_deduction_amount_krw if room_deduction_enabled else 0
+    return {
+        "label": label,
+        "room_deduction_enabled": room_deduction_enabled,
+        "room_deduction_krw": room_deduction,
+        "card_acquisition_tax": card_acquisition_tax,
+        "effective_mortgage_krw": effective_mortgage,
+        "card_payment_total_krw": round(card_total),
+        "cash_required_at_closing_krw": round(cash_required),
+        "required_credit_loan_krw": required_credit,
+    }
 
 
 def _required_credit_for_price(values: FinancingScenarioInput, purchase_price_krw: int) -> int:
@@ -192,6 +258,7 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         values.mortgage_policy_cap_krw,
         values.family_loan_amount_krw,
         values.legal_cost_krw,
+        values.room_deduction_amount_krw,
         values.first_time_homebuyer_price_limit_krw,
         values.first_time_acquisition_tax_discount_limit_krw,
         values.credit_stress_threshold_krw,
@@ -259,7 +326,10 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         values, values.purchase_price_krw
     )
     mortgage_limit = min(ltv_limit, mortgage_policy_cap)
+    room_deduction = values.room_deduction_amount_krw if values.room_deduction_enabled else 0
+    adjusted_mortgage_limit = max(0, mortgage_limit - room_deduction)
     mortgage_limit_excess = max(0, values.mortgage_amount_krw - mortgage_limit)
+    adjusted_mortgage_limit_excess = max(0, values.mortgage_amount_krw - adjusted_mortgage_limit)
     actual_ltv = effective_mortgage / collateral_value * 100 if collateral_value else 0
     non_credit_funds = available_cash + effective_mortgage + values.family_loan_amount_krw
     required_credit_loan = max(0, cash_required_at_closing - non_credit_funds)
@@ -465,10 +535,14 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     total_required = values.purchase_price_krw + total_transaction_cost
 
     warnings: list[str] = []
-    if mortgage_limit_excess > 0:
+    if adjusted_mortgage_limit_excess > 0:
         warnings.append(
-            f"희망 주담대가 LTV·정책 한도를 약 {mortgage_limit_excess:,}원 초과해 "
+            f"희망 주담대가 LTV·정책·방공제 반영 한도를 약 {adjusted_mortgage_limit_excess:,}원 초과해 "
             f"실제 자금에는 {effective_mortgage:,}원만 반영했습니다."
+        )
+    if values.room_deduction_enabled and room_deduction > 0:
+        warnings.append(
+            f"방공제 {room_deduction:,}원을 반영했습니다. MCI/MCG 가능 은행이면 이 차감이 없어질 수 있습니다."
         )
     if dsr_limit_exceeded:
         warnings.append(
@@ -543,11 +617,15 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "ltv_limit_krw": ltv_limit,
         "mortgage_policy_cap_krw": mortgage_policy_cap,
         "mortgage_limit_krw": mortgage_limit,
+        "room_deduction_enabled": values.room_deduction_enabled,
+        "room_deduction_amount_krw": values.room_deduction_amount_krw,
+        "room_deduction_applied_krw": room_deduction,
+        "adjusted_mortgage_limit_krw": adjusted_mortgage_limit,
         "requested_mortgage_krw": values.mortgage_amount_krw,
         "effective_mortgage_krw": effective_mortgage,
-        "mortgage_limit_excess_krw": mortgage_limit_excess,
+        "mortgage_limit_excess_krw": adjusted_mortgage_limit_excess,
         "actual_ltv_percent": round(actual_ltv, 1),
-        "mortgage_limit_exceeded": mortgage_limit_excess > 0,
+        "mortgage_limit_exceeded": adjusted_mortgage_limit_excess > 0,
         "required_credit_loan_krw": round(required_credit_loan),
         "max_credit_loan_by_dsr_krw": max_credit_loan_krw,
         "rough_credit_income_limit_krw": rough_credit_income_limit,
@@ -596,6 +674,32 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "dsr_limit_percent": values.dsr_limit_percent,
         "combined_monthly_income_krw": round(combined_monthly_income(values)),
         "warnings": warnings,
+        "closing_case_summaries": [
+            _closing_case_summary(
+                values,
+                label="MCI/MCG 가능 · 취득세 현금",
+                room_deduction_enabled=False,
+                card_acquisition_tax=False,
+            ),
+            _closing_case_summary(
+                values,
+                label="MCI/MCG 가능 · 취득세 카드",
+                room_deduction_enabled=False,
+                card_acquisition_tax=True,
+            ),
+            _closing_case_summary(
+                values,
+                label="방공제 적용 · 취득세 현금",
+                room_deduction_enabled=True,
+                card_acquisition_tax=False,
+            ),
+            _closing_case_summary(
+                values,
+                label="방공제 적용 · 취득세 카드",
+                room_deduction_enabled=True,
+                card_acquisition_tax=True,
+            ),
+        ],
     }
     if not all(
         isfinite(value)

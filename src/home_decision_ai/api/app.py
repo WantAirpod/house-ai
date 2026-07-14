@@ -13,16 +13,18 @@ from home_decision_ai.settings import get_settings
 
 
 class FinancingCalculatorRequest(BaseModel):
-    purchase_price_krw: int = Field(default=990_000_000, ge=0)
-    cash_krw: int = Field(default=280_000_000, ge=0)
+    purchase_price_krw: int = Field(default=1_017_000_000, ge=0)
+    cash_krw: int = Field(default=290_000_000, ge=0)
     lease_deposit_krw: int = Field(default=0, ge=0)
     lease_loan_krw: int = Field(default=0, ge=0)
     lease_equity_included_in_cash: bool = True
-    combined_gross_income_krw: int = Field(default=150_000_000, gt=0)
+    combined_gross_income_krw: int = Field(default=145_400_000, gt=0)
     mortgage_amount_krw: int = Field(default=600_000_000, ge=0)
     collateral_value_krw: int = Field(default=0, ge=0)
     ltv_ratio_percent: float = Field(default=70.0, ge=0, le=100)
     mortgage_policy_cap_krw: int = Field(default=600_000_000, ge=0)
+    room_deduction_enabled: bool = False
+    room_deduction_amount_krw: int = Field(default=48_000_000, ge=0)
     mortgage_rate_percent: float = Field(default=5.0, ge=0)
     mortgage_term_years: int = Field(default=30, gt=0)
     mortgage_stress_rate_percent: float = Field(default=3.0, ge=0)
@@ -32,21 +34,21 @@ class FinancingCalculatorRequest(BaseModel):
     credit_income_limit_ratio_percent: float = Field(default=100.0, ge=0)
     credit_stress_rate_percent: float = Field(default=1.5, ge=0)
     credit_stress_threshold_krw: int = Field(default=100_000_000, ge=0)
-    family_loan_amount_krw: int = Field(default=70_000_000, ge=0)
+    family_loan_amount_krw: int = Field(default=65_000_000, ge=0)
     family_loan_rate_percent: float = Field(default=4.6, ge=0)
     family_loan_term_years: int = Field(default=10, gt=0)
     family_loan_repayment_type: Literal["bullet", "amortizing"] = "bullet"
     family_principal_reserve_enabled: bool = False
     acquisition_tax_rate_percent: float = Field(default=3.3, ge=0)
-    first_time_homebuyer_eligible: bool = False
+    first_time_homebuyer_eligible: bool = True
     first_time_homebuyer_price_limit_krw: int = Field(default=1_200_000_000, ge=0)
     first_time_acquisition_tax_discount_limit_krw: int = Field(default=2_000_000, ge=0)
     local_education_tax_discount_ratio_percent: float = Field(default=10.0, ge=0)
     brokerage_rate_percent: float = Field(default=0.55, ge=0)
     legal_cost_krw: int = Field(default=2_000_000, ge=0)
     card_acquisition_tax: bool = True
-    card_brokerage: bool = True
-    card_legal_cost: bool = True
+    card_brokerage: bool = False
+    card_legal_cost: bool = False
     card_payment_ratio_percent: float = Field(default=100.0, ge=0, le=100)
     card_installment_months: int = Field(default=12, gt=0)
     card_installment_rate_percent: float = Field(default=0.0, ge=0)

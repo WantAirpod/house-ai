@@ -172,7 +172,7 @@
       <div class="header-inner">
         <div>
           <h1>자금·대출 계산기</h1>
-          <div class="subtle">기흥·수지 실거주 매수 · 기준일 2026-06-30</div>
+          <div class="subtle">기흥역센트럴푸르지오 10.17억 잔금 플랜 · 기준일 2026-07-14</div>
         </div>
         <div class="header-actions">
           <button type="button" onclick="location.href='/financing-plan'">추천 자금 플랜</button>
@@ -184,12 +184,7 @@
     <main>
       <div class="price-strip" aria-label="매매가 빠른 입력">
         <strong>빠른 입력 · 직접 수정 가능</strong>
-        <button class="price-button" type="button" data-price="965000000">9.65억</button>
-        <button class="price-button" type="button" data-price="990000000">9.9억</button>
-        <button class="price-button" type="button" data-price="1000000000">10.0억</button>
-        <button class="price-button" type="button" data-price="1010000000">10.1억</button>
-        <button class="price-button" type="button" data-price="1020000000">10.2억</button>
-        <button class="price-button" type="button" data-price="1030000000">10.3억</button>
+        <button class="price-button" type="button" data-price="1017000000">10.17억 고정</button>
       </div>
 
       <div class="workspace">
@@ -200,7 +195,7 @@
             <div class="fields">
               <div class="field">
                 <label for="purchase_price_krw">매매가</label>
-                <div class="input-wrap"><input id="purchase_price_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+                <div class="input-wrap"><input id="purchase_price_krw" type="number" min="0" step="100" readonly><span class="unit">만원</span></div>
               </div>
               <div class="field">
                 <label for="cash_krw">보유 현금</label>
@@ -243,6 +238,10 @@
               <div class="field">
                 <label for="mortgage_policy_cap_krw">정책상 주담대 상한</label>
                 <div class="input-wrap"><input id="mortgage_policy_cap_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="room_deduction_amount_krw">방공제 금액</label>
+                <div class="input-wrap"><input id="room_deduction_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
               <div class="field">
                 <label for="mortgage_rate_percent">주담대 금리</label>
@@ -308,6 +307,10 @@
             <div class="toggle-row" style="margin-top: 12px;">
               <div class="toggle-copy"><strong>만기 원금 월 적립</strong><span>만기일시상환 원금을 차용기간 동안 별도 적립</span></div>
               <input id="family_principal_reserve_enabled" type="checkbox">
+            </div>
+            <div class="toggle-row" style="margin-top: 12px;">
+              <div class="toggle-copy"><strong>방공제 적용</strong><span>MCI/MCG 불가 시 소액임차보증금 차감</span></div>
+              <input id="room_deduction_enabled" type="checkbox">
             </div>
           </div>
 
@@ -396,6 +399,8 @@
                   <tr><td>LTV 기준 한도</td><td id="ltv-limit">-</td></tr>
                   <tr><td>정책상 주담대 상한</td><td id="mortgage-policy-cap">-</td></tr>
                   <tr><td>최종 담보·정책 한도</td><td id="mortgage-limit">-</td></tr>
+                  <tr><td>방공제 차감</td><td id="room-deduction">-</td></tr>
+                  <tr><td>방공제 반영 한도</td><td id="adjusted-mortgage-limit">-</td></tr>
                   <tr><td>실제 적용 주담대</td><td id="effective-mortgage-row">-</td></tr>
                   <tr><td>희망 주담대 초과액</td><td id="mortgage-limit-excess">-</td></tr>
                   <tr><td>실제 적용 LTV</td><td id="actual-ltv">-</td></tr>
@@ -440,6 +445,20 @@
 
             <div class="table-wrap">
               <table>
+                <thead>
+                  <tr>
+                    <th>잔금 케이스</th>
+                    <th>주담대</th>
+                    <th>카드 이동</th>
+                    <th>필요 신용대출</th>
+                  </tr>
+                </thead>
+                <tbody id="closing-case-table"></tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <table>
                 <thead><tr><th>월 현금흐름</th><th>월 금액</th></tr></thead>
                 <tbody>
                   <tr><td>주담대 원리금</td><td id="mortgage-monthly">-</td></tr>
@@ -463,12 +482,12 @@
         "purchase_price_krw", "cash_krw", "lease_deposit_krw", "lease_loan_krw",
         "combined_gross_income_krw", "mortgage_amount_krw", "collateral_value_krw",
         "mortgage_policy_cap_krw", "family_loan_amount_krw",
-        "legal_cost_krw", "credit_stress_threshold_krw",
+        "legal_cost_krw", "credit_stress_threshold_krw", "room_deduction_amount_krw",
         "first_time_homebuyer_price_limit_krw", "first_time_acquisition_tax_discount_limit_krw"
       ]);
       const checkboxFields = new Set([
         "lease_equity_included_in_cash", "family_principal_reserve_enabled",
-        "first_time_homebuyer_eligible",
+        "room_deduction_enabled", "first_time_homebuyer_eligible",
         "card_acquisition_tax", "card_brokerage", "card_legal_cost"
       ]);
       const stringFields = new Set(["family_loan_repayment_type"]);
@@ -485,7 +504,7 @@
       let defaults = null;
       let latestResult = null;
       let debounceTimer = null;
-      const storageSchemaVersion = 4;
+      const storageSchemaVersion = 5;
 
       const won = value => `${Math.round(value).toLocaleString("ko-KR")}원`;
       const compactWon = value => {
@@ -561,6 +580,8 @@
           "ltv-limit": result.ltv_limit_krw,
           "mortgage-policy-cap": result.mortgage_policy_cap_krw,
           "mortgage-limit": result.mortgage_limit_krw,
+          "room-deduction": result.room_deduction_applied_krw,
+          "adjusted-mortgage-limit": result.adjusted_mortgage_limit_krw,
           "effective-mortgage-row": result.effective_mortgage_krw,
           "mortgage-limit-excess": result.mortgage_limit_excess_krw,
           "rough-credit-income-limit": result.rough_credit_income_limit_krw,
@@ -585,6 +606,20 @@
         document.getElementById("actual-ltv").textContent = `${result.actual_ltv_percent}%`;
         document.getElementById("tax-card-copy").textContent = won(result.acquisition_tax_krw);
         document.getElementById("broker-card-copy").textContent = won(result.brokerage_krw);
+
+        const closingCaseTable = document.getElementById("closing-case-table");
+        closingCaseTable.innerHTML = "";
+        (result.closing_case_summaries || []).forEach(row => {
+          const tr = document.createElement("tr");
+          const className = row.required_credit_loan_krw > result.max_credit_loan_by_dsr_krw ? "danger" : "";
+          tr.innerHTML = `
+            <td>${row.label}</td>
+            <td>${compactWon(row.effective_mortgage_krw)}</td>
+            <td>${compactWon(row.card_payment_total_krw)}</td>
+            <td class="${className}"><strong>${compactWon(row.required_credit_loan_krw)}</strong></td>
+          `;
+          closingCaseTable.appendChild(tr);
+        });
 
         const recommendationList = document.getElementById("recommendation-list");
         recommendationList.innerHTML = "";
@@ -662,7 +697,7 @@
         const stored = JSON.parse(localStorage.getItem("home-decision-financing") || "{}");
         const saved = stored._schema_version === storageSchemaVersion
           ? stored
-          : { ...stored, lease_deposit_krw: 0, lease_loan_krw: 0 };
+          : {};
         delete saved._schema_version;
         setForm({ ...defaults, ...saved });
         fieldIds.forEach(id => document.getElementById(id).addEventListener("input", queueCalculate));
