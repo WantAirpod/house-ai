@@ -51,10 +51,8 @@
       .warnings { display:grid; gap:8px; margin-top:16px; }
       .warning { padding:10px 12px; border-left:3px solid var(--warning); background:var(--warning-soft); font-size:12px; line-height:1.5; }
       .warning.danger { border-color:var(--danger); background:var(--danger-soft); }
-      .tabs { display:flex; gap:8px; margin-bottom:14px; }
-      .tab-button.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
-      .tab-panel { display:none; }
-      .tab-panel.active { display:block; }
+      .mini { color:var(--muted); font-size:12px; line-height:1.45; }
+      .section-title { margin:18px 0 0; font-size:14px; }
       button { min-height:36px; border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:0 12px; cursor:pointer; }
       @media (max-width:900px) { .grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
       @media (max-width:620px) { .fields,.metrics { grid-template-columns:1fr; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
@@ -65,7 +63,7 @@
       <div class="wrap header-inner">
         <div>
           <h1>기흥역센트럴푸르지오 잔금 계산기</h1>
-          <div class="subtle">203동 25층 · 매매가 10.17억 고정 · 내 주담대 DSR + 와이프 실제 신용대출 한도</div>
+          <div class="subtle">203동 25층 · 매매가 10.17억 고정 · 단독명의 · 보험사 주담대 DSR 50% 기준</div>
         </div>
         <button id="reset-button" type="button">기본값 복원</button>
       </div>
@@ -97,28 +95,44 @@
                 <div class="input-wrap"><input id="borrower_gross_income_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
               <div class="field">
-                <label for="spouse_gross_income_krw">와이프 세전 연소득</label>
-                <div class="input-wrap"><input id="spouse_gross_income_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+                <label for="credit_rate_percent">신용대출 금리</label>
+                <div class="input-wrap"><input id="credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
               <div class="field">
-                <label for="spouse_verified_credit_limit_krw">와이프 확인 신용대출 한도</label>
-                <div class="input-wrap"><input id="spouse_verified_credit_limit_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
-              </div>
-              <div class="field">
-                <label for="spouse_verified_credit_rate_percent">와이프 확인 신용대출 금리</label>
-                <div class="input-wrap"><input id="spouse_verified_credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
-              </div>
-              <div class="field">
-                <label for="card_installment_months">카드 할부개월</label>
-                <div class="input-wrap"><input id="card_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
+                <label for="credit_term_years">신용대출 기간</label>
+                <div class="input-wrap"><input id="credit_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
               </div>
               <div class="field">
                 <label for="card_installment_rate_percent">카드 할부금리</label>
                 <div class="input-wrap"><input id="card_installment_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
               <div class="field">
+                <label for="dsr_limit_percent">보험사 DSR 한도</label>
+                <div class="input-wrap"><input id="dsr_limit_percent" type="number" min="0" step="1"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
                 <label for="room_deduction_amount_krw">방공제 금액</label>
                 <div class="input-wrap"><input id="room_deduction_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="acquisition_tax_installment_months">취득세 할부개월</label>
+                <div class="input-wrap"><input id="acquisition_tax_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
+              </div>
+              <div class="field">
+                <label for="brokerage_installment_months">중개보수 할부개월</label>
+                <div class="input-wrap"><input id="brokerage_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
+              </div>
+              <div class="field">
+                <label for="legal_installment_months">법무비 할부개월</label>
+                <div class="input-wrap"><input id="legal_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
+              </div>
+              <div class="field">
+                <label for="extra_card_amount_krw">기타 카드결제</label>
+                <div class="input-wrap"><input id="extra_card_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="extra_card_installment_months">기타 할부개월</label>
+                <div class="input-wrap"><input id="extra_card_installment_months" type="number" min="1" step="1"><span class="unit">개월</span></div>
               </div>
             </div>
             <div class="toggle">
@@ -128,6 +142,14 @@
             <div class="toggle">
               <div><strong>취득세 카드 납부</strong><span>잔금 당일 현금 필요액에서 취득세 제외</span></div>
               <input id="card_acquisition_tax" type="checkbox">
+            </div>
+            <div class="toggle">
+              <div><strong>중개보수 카드 납부</strong><span>가능한 경우 잔금 현금 필요액에서 제외</span></div>
+              <input id="card_brokerage" type="checkbox">
+            </div>
+            <div class="toggle">
+              <div><strong>법무비 카드 납부</strong><span>가능한 경우 잔금 현금 필요액에서 제외</span></div>
+              <input id="card_legal_cost" type="checkbox">
             </div>
             <div class="toggle">
               <div><strong>생애최초 감면</strong><span>취득세 최대 200만 원 감면 가정</span></div>
@@ -140,32 +162,36 @@
           <h2>계산 결과</h2>
           <div class="metrics">
             <div class="metric"><div class="metric-label">필요 신용대출</div><div class="metric-value" id="required-credit">-</div><div class="metric-note">카드 납부분 제외</div></div>
-            <div class="metric"><div class="metric-label">최종 부족금액</div><div class="metric-value" id="final-shortfall">-</div><div class="metric-note" id="mortgage-note">개인별 한도 반영</div></div>
-            <div class="metric"><div class="metric-label">내 주담대 DSR</div><div class="metric-value" id="borrower-dsr-value">-</div><div class="metric-note">내 소득만 기준</div></div>
-            <div class="metric"><div class="metric-label">와이프 신용대출 사용</div><div class="metric-value" id="spouse-credit">-</div><div class="metric-note" id="spouse-credit-note">확인 한도 기준</div></div>
+            <div class="metric"><div class="metric-label">DSR상 추가 가능</div><div class="metric-value" id="extra-credit-capacity">-</div><div class="metric-note">필요 신용대출 사용 후 잔여</div></div>
+            <div class="metric"><div class="metric-label">부족/여유</div><div class="metric-value" id="final-shortfall">-</div><div class="metric-note" id="mortgage-note">보험사 DSR 50% 기준</div></div>
+            <div class="metric"><div class="metric-label">월 총 유출</div><div class="metric-value" id="monthly-total">-</div><div class="metric-note">주담대+신용+부모이자+카드</div></div>
           </div>
           <div class="body">
-            <div class="tabs">
-              <button class="tab-button active" type="button" data-tab="separate">각각 따로</button>
-              <button class="tab-button" type="button" data-tab="joint">공동/합산</button>
-            </div>
-            <div class="tab-panel active" id="tab-separate">
             <table>
               <thead><tr><th>잔금 케이스</th><th>주담대</th><th>카드 이동</th><th>필요 신용대출</th></tr></thead>
               <tbody id="case-table"></tbody>
             </table>
+            <h3 class="section-title">보험사 DSR 50% 기준 신용대출 한도</h3>
             <table>
-              <thead><tr><th>대출 가능성 분리 계산</th><th>금액/비율</th></tr></thead>
+              <thead><tr><th>항목</th><th>금액/비율</th></tr></thead>
               <tbody>
-                <tr><td>내 주담대 DSR</td><td id="borrower-dsr">-</td></tr>
-                <tr><td>와이프 확인 신용대출 한도</td><td id="spouse-verified-limit">-</td></tr>
-                <tr><td>와이프 신용대출 월 이자</td><td id="spouse-credit-interest">-</td></tr>
-                <tr><td>와이프 신용대출 5년 원리금</td><td id="spouse-credit-payment">-</td></tr>
+                <tr><td>보험사 DSR 한도</td><td id="insurance-dsr-limit">-</td></tr>
+                <tr><td>현재 스트레스 DSR</td><td id="borrower-dsr">-</td></tr>
+                <tr><td>DSR상 신용대출 최대치</td><td id="max-credit-by-dsr">-</td></tr>
+                <tr><td>잔금에 필요한 신용대출</td><td id="required-credit-row">-</td></tr>
+                <tr><td><strong>추가로 더 빌릴 수 있는 신용대출</strong></td><td id="remaining-credit-capacity"><strong>-</strong></td></tr>
+                <tr><td>DSR상 부족액</td><td id="credit-shortfall">-</td></tr>
+              </tbody>
+            </table>
+            <h3 class="section-title">월 현금흐름</h3>
+            <table>
+              <thead><tr><th>항목</th><th>월 납입</th></tr></thead>
+              <tbody>
                 <tr><td>주담대 월 원리금</td><td id="mortgage-monthly">-</td></tr>
+                <tr><td>필요 신용대출 월 원리금</td><td id="credit-monthly">-</td></tr>
                 <tr><td>부모 차용 월 이자</td><td id="family-interest-monthly">-</td></tr>
-                <tr><td>카드 할부 월 납입</td><td id="card-monthly">-</td></tr>
-                <tr><td><strong>카드기간 월 총 유출</strong></td><td id="total-monthly-outflow"><strong>-</strong></td></tr>
-                <tr><td>최종 부족금액</td><td id="individual-shortfall">-</td></tr>
+                <tr><td>카드 할부 월 납입 합계</td><td id="card-monthly">-</td></tr>
+                <tr><td><strong>월 총 유출</strong></td><td id="total-monthly-outflow"><strong>-</strong></td></tr>
                 <tr><td>적용 주담대</td><td id="effective-mortgage">-</td></tr>
                 <tr><td>카드 납부 총액</td><td id="card-total">-</td></tr>
                 <tr><td>잔금 시 현금 필요액</td><td id="cash-at-closing">-</td></tr>
@@ -173,31 +199,13 @@
                 <tr><td>중개보수·법무비</td><td id="fees">-</td></tr>
               </tbody>
             </table>
+            <h3 class="section-title">카드 결제별 할부</h3>
+            <div class="mini">체크한 거래비만 잔금 현금 필요액에서 빠진다. 기타 카드결제는 잔금 필요액에서는 빼지 않고 월 지출에만 더한다.</div>
+            <table>
+              <thead><tr><th>결제</th><th>결제액</th><th>할부개월</th><th>월 납입</th></tr></thead>
+              <tbody id="card-installment-table"></tbody>
+            </table>
             <div class="warnings" id="warnings"></div>
-            </div>
-            <div class="tab-panel" id="tab-joint">
-              <table>
-                <thead><tr><th>공동/합산 시나리오</th><th>금액/비율</th></tr></thead>
-                <tbody>
-                  <tr><td>부부합산 인정소득</td><td id="joint-income">-</td></tr>
-                  <tr><td>공동 주담대 스트레스 DSR</td><td id="joint-dsr">-</td></tr>
-                  <tr><td>필요 신용대출</td><td id="joint-required-credit">-</td></tr>
-                  <tr><td>DSR 기준 최대 신용대출</td><td id="joint-max-credit">-</td></tr>
-                  <tr><td>공동/합산 부족액</td><td id="joint-shortfall">-</td></tr>
-                  <tr><td>카드 납부 총액</td><td id="joint-card-total">-</td></tr>
-                  <tr><td>적용 주담대</td><td id="joint-mortgage">-</td></tr>
-                </tbody>
-              </table>
-              <table>
-                <thead><tr><th>비교</th><th>판단</th></tr></thead>
-                <tbody>
-                  <tr><td>각각 따로 최종 부족</td><td id="compare-separate-shortfall">-</td></tr>
-                  <tr><td>공동/합산 최종 부족</td><td id="compare-joint-shortfall">-</td></tr>
-                  <tr><td>유리한 방식</td><td id="better-plan">-</td></tr>
-                </tbody>
-              </table>
-              <div class="warnings" id="joint-warnings"></div>
-            </div>
           </div>
         </section>
       </div>
@@ -205,17 +213,21 @@
     <script>
       const amountFields = new Set([
         "purchase_price_krw","mortgage_amount_krw","cash_krw","family_loan_amount_krw",
-        "borrower_gross_income_krw","spouse_gross_income_krw","spouse_verified_credit_limit_krw","room_deduction_amount_krw"
+        "borrower_gross_income_krw","room_deduction_amount_krw","extra_card_amount_krw"
       ]);
       const inputIds = [
         ...amountFields,
-        "spouse_verified_credit_rate_percent","card_installment_months","card_installment_rate_percent",
-        "room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"
+        "credit_rate_percent","credit_term_years","card_installment_rate_percent","dsr_limit_percent",
+        "acquisition_tax_installment_months","brokerage_installment_months","legal_installment_months",
+        "extra_card_installment_months","room_deduction_enabled","card_acquisition_tax",
+        "card_brokerage","card_legal_cost","first_time_homebuyer_eligible"
       ];
-      const checkboxFields = new Set(["room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"]);
+      const checkboxFields = new Set([
+        "room_deduction_enabled","card_acquisition_tax","card_brokerage",
+        "card_legal_cost","first_time_homebuyer_eligible"
+      ]);
       const fixedPayload = {
         purchase_price_krw: 1017000000,
-        combined_gross_income_krw: 145400000,
         collateral_value_krw: 0,
         ltv_ratio_percent: 70,
         mortgage_policy_cap_krw: 600000000,
@@ -223,10 +235,9 @@
         mortgage_term_years: 40,
         mortgage_stress_rate_percent: 3.0,
         mortgage_stress_ratio_percent: 40,
-        credit_rate_percent: 6.5,
-        credit_term_years: 5,
         credit_income_limit_ratio_percent: 100,
         borrower_credit_income_limit_ratio_percent: 100,
+        spouse_credit_income_limit_ratio_percent: 0,
         credit_stress_rate_percent: 1.5,
         credit_stress_threshold_krw: 100000000,
         family_loan_rate_percent: 2.0,
@@ -239,26 +250,29 @@
         local_education_tax_discount_ratio_percent: 10,
         brokerage_rate_percent: 0.55,
         legal_cost_krw: 2000000,
-        card_brokerage: false,
-        card_legal_cost: false,
         card_payment_ratio_percent: 100,
-        dsr_warning_percent: 39,
-        dsr_limit_percent: 40
+        dsr_warning_percent: 47
       };
       const defaults = {
         purchase_price_krw: 1017000000,
         mortgage_amount_krw: 600000000,
         cash_krw: 290000000,
-        family_loan_amount_krw: 65000000,
+        family_loan_amount_krw: 70000000,
         borrower_gross_income_krw: 97400000,
-        spouse_gross_income_krw: 48000000,
-        spouse_verified_credit_limit_krw: 60000000,
-        spouse_verified_credit_rate_percent: 11.4,
-        card_installment_months: 12,
+        credit_rate_percent: 6.5,
+        credit_term_years: 5,
         card_installment_rate_percent: 0,
+        dsr_limit_percent: 50,
         room_deduction_amount_krw: 48000000,
+        acquisition_tax_installment_months: 12,
+        brokerage_installment_months: 3,
+        legal_installment_months: 3,
+        extra_card_amount_krw: 0,
+        extra_card_installment_months: 12,
         room_deduction_enabled: false,
         card_acquisition_tax: true,
+        card_brokerage: false,
+        card_legal_cost: false,
         first_time_homebuyer_eligible: true
       };
       const won = v => `${Math.round(v).toLocaleString("ko-KR")}원`;
@@ -285,10 +299,12 @@
             payload[id] = amountFields.has(id) ? Math.round(num * 10000) : num;
           }
         });
-        payload.combined_gross_income_krw = payload.borrower_gross_income_krw + payload.spouse_gross_income_krw;
+        payload.combined_gross_income_krw = payload.borrower_gross_income_krw;
+        payload.spouse_gross_income_krw = 0;
         payload.borrower_mortgage_share_percent = 100;
         payload.borrower_credit_income_limit_ratio_percent = 100;
         payload.spouse_credit_income_limit_ratio_percent = 0;
+        payload.card_installment_months = payload.acquisition_tax_installment_months;
         return {...payload, ...overrides};
       }
       function annuity(principal, annualRatePercent, months) {
@@ -306,39 +322,78 @@
         });
         return response.json();
       }
-      function renderSeparate(result, jointResult) {
+      function cardInstallmentRows(result, form) {
+        return [
+          {
+            label: "취득세",
+            enabled: form.card_acquisition_tax,
+            amount: result.card_items.acquisition_tax || 0,
+            months: form.acquisition_tax_installment_months,
+          },
+          {
+            label: "중개보수",
+            enabled: form.card_brokerage,
+            amount: result.card_items.brokerage || 0,
+            months: form.brokerage_installment_months,
+          },
+          {
+            label: "법무비",
+            enabled: form.card_legal_cost,
+            amount: result.card_items.legal_cost || 0,
+            months: form.legal_installment_months,
+          },
+          {
+            label: "기타 카드결제",
+            enabled: form.extra_card_amount_krw > 0,
+            amount: form.extra_card_amount_krw,
+            months: form.extra_card_installment_months,
+          },
+        ].filter(row => row.enabled && row.amount > 0);
+      }
+      function render(result) {
         const form = readForm();
-        const spouseLimit = form.spouse_verified_credit_limit_krw;
-        const spouseCreditUsed = Math.min(result.required_credit_loan_krw, spouseLimit);
-        const finalShortfallAmount = Math.max(0, result.required_credit_loan_krw - spouseCreditUsed);
-        const spouseMonthlyInterest = spouseCreditUsed * form.spouse_verified_credit_rate_percent / 100 / 12;
-        const spouseMonthlyPayment = annuity(spouseCreditUsed, form.spouse_verified_credit_rate_percent, 60);
-        const cardMonthlyPayment = annuity(result.card_payment_total_krw, form.card_installment_rate_percent, form.card_installment_months);
+        const maxCreditByDsr = result.max_credit_loan_by_dsr_krw || 0;
+        const requiredCredit = result.required_credit_loan_krw || 0;
+        const remainingCreditCapacity = Math.max(0, maxCreditByDsr - requiredCredit);
+        const creditShortfall = Math.max(0, requiredCredit - maxCreditByDsr);
+        const creditMonths = Math.max(1, form.credit_term_years * 12);
+        const requiredCreditMonthly = annuity(requiredCredit, form.credit_rate_percent, creditMonths);
+        const cardRows = cardInstallmentRows(result, form).map(row => ({
+          ...row,
+          monthly: annuity(row.amount, form.card_installment_rate_percent, Math.max(1, row.months)),
+        }));
+        const cardMonthlyPayment = cardRows.reduce((sum, row) => sum + row.monthly, 0);
+        const cardTotal = cardRows.reduce((sum, row) => sum + row.amount, 0);
         const familyMonthlyInterest = form.family_loan_amount_krw * 0.02 / 12;
-        const totalMonthlyOutflow = result.mortgage_monthly_payment_krw + spouseMonthlyPayment + familyMonthlyInterest + cardMonthlyPayment;
-        document.getElementById("required-credit").textContent = compactWon(result.required_credit_loan_krw);
+        const totalMonthlyOutflow = result.mortgage_monthly_payment_krw + requiredCreditMonthly + familyMonthlyInterest + cardMonthlyPayment;
+
+        document.getElementById("required-credit").textContent = compactWon(requiredCredit);
+        document.getElementById("extra-credit-capacity").textContent = compactWon(remainingCreditCapacity);
+        document.getElementById("extra-credit-capacity").className = `metric-value ${remainingCreditCapacity > 0 ? "ok" : "danger"}`;
         const finalShortfall = document.getElementById("final-shortfall");
-        finalShortfall.textContent = compactWon(finalShortfallAmount);
-        finalShortfall.className = `metric-value ${finalShortfallAmount > 0 ? "danger" : "ok"}`;
+        finalShortfall.textContent = creditShortfall > 0 ? `${compactWon(creditShortfall)} 부족` : `${compactWon(remainingCreditCapacity)} 여유`;
+        finalShortfall.className = `metric-value ${creditShortfall > 0 ? "danger" : "ok"}`;
+        document.getElementById("monthly-total").textContent = compactWon(totalMonthlyOutflow);
         document.getElementById("effective-mortgage").textContent = compactWon(result.effective_mortgage_krw);
         document.getElementById("mortgage-note").textContent = `방공제 ${compactWon(result.room_deduction_applied_krw)}`;
-        document.getElementById("borrower-dsr-value").textContent = `${result.borrower_stress_dsr_percent}%`;
-        document.getElementById("spouse-credit").textContent = compactWon(spouseCreditUsed);
-        document.getElementById("spouse-credit-note").textContent = `한도 ${compactWon(spouseLimit)} · 금리 ${form.spouse_verified_credit_rate_percent}%`;
-        document.getElementById("borrower-dsr").textContent = `${result.borrower_stress_dsr_percent}%`;
-        document.getElementById("spouse-verified-limit").textContent = compactWon(spouseLimit);
-        document.getElementById("spouse-credit-interest").textContent = compactWon(spouseMonthlyInterest);
-        document.getElementById("spouse-credit-payment").textContent = compactWon(spouseMonthlyPayment);
+        document.getElementById("insurance-dsr-limit").textContent = `${form.dsr_limit_percent}%`;
+        document.getElementById("borrower-dsr").textContent = `${result.stress_dsr_percent}%`;
+        document.getElementById("max-credit-by-dsr").textContent = compactWon(maxCreditByDsr);
+        document.getElementById("required-credit-row").textContent = compactWon(requiredCredit);
+        document.getElementById("remaining-credit-capacity").textContent = compactWon(remainingCreditCapacity);
+        document.getElementById("remaining-credit-capacity").className = remainingCreditCapacity > 0 ? "ok" : "danger";
+        document.getElementById("credit-shortfall").textContent = compactWon(creditShortfall);
+        document.getElementById("credit-shortfall").className = creditShortfall > 0 ? "danger" : "ok";
         document.getElementById("mortgage-monthly").textContent = compactWon(result.mortgage_monthly_payment_krw);
+        document.getElementById("credit-monthly").textContent = compactWon(requiredCreditMonthly);
         document.getElementById("family-interest-monthly").textContent = compactWon(familyMonthlyInterest);
         document.getElementById("card-monthly").textContent = compactWon(cardMonthlyPayment);
         document.getElementById("total-monthly-outflow").textContent = compactWon(totalMonthlyOutflow);
-        document.getElementById("individual-shortfall").textContent = compactWon(finalShortfallAmount);
-        document.getElementById("individual-shortfall").className = finalShortfallAmount > 0 ? "danger" : "ok";
-        document.getElementById("card-total").textContent = compactWon(result.card_payment_total_krw);
+        document.getElementById("card-total").textContent = compactWon(cardTotal);
         document.getElementById("cash-at-closing").textContent = compactWon(result.cash_required_at_closing_krw);
         document.getElementById("acquisition-tax").textContent = compactWon(result.acquisition_tax_krw);
         document.getElementById("fees").textContent = `${compactWon(result.brokerage_krw)} + ${compactWon(result.legal_cost_krw)}`;
+
         const caseTable = document.getElementById("case-table");
         caseTable.innerHTML = "";
         result.closing_case_summaries.forEach(row => {
@@ -346,56 +401,47 @@
           tr.innerHTML = `<td>${row.label}</td><td>${compactWon(row.effective_mortgage_krw)}</td><td>${compactWon(row.card_payment_total_krw)}</td><td><strong>${compactWon(row.required_credit_loan_krw)}</strong></td>`;
           caseTable.appendChild(tr);
         });
+
+        const cardTable = document.getElementById("card-installment-table");
+        cardTable.innerHTML = "";
+        if (cardRows.length === 0) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="4" class="mini">카드 결제 항목이 없습니다.</td>`;
+          cardTable.appendChild(tr);
+        } else {
+          cardRows.forEach(row => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${row.label}</td><td>${compactWon(row.amount)}</td><td>${row.months}개월</td><td><strong>${compactWon(row.monthly)}</strong></td>`;
+            cardTable.appendChild(tr);
+          });
+        }
+
         const warnings = document.getElementById("warnings");
         warnings.innerHTML = "";
-        result.warnings.forEach(message => {
+        if (creditShortfall > 0) {
           const div = document.createElement("div");
-          div.className = `warning${finalShortfallAmount > 0 || result.dsr_limit_exceeded ? " danger" : ""}`;
+          div.className = "warning danger";
+          div.textContent = `보험사 DSR ${form.dsr_limit_percent}% 기준으로 필요한 신용대출 중 약 ${won(creditShortfall)}이 부족합니다.`;
+          warnings.appendChild(div);
+        }
+        if (remainingCreditCapacity > 0) {
+          const div = document.createElement("div");
+          div.className = "warning";
+          div.textContent = `잔금 필요 신용대출을 받은 뒤에도 DSR상 약 ${won(remainingCreditCapacity)}의 추가 신용대출 여유가 있습니다. 실제 한도는 신용점수·은행/보험사 내규·대출 실행순서에 따라 달라집니다.`;
+          warnings.appendChild(div);
+        }
+        result.warnings.forEach(message => {
+          if (message.includes("부부합산소득")) return;
+          if (message.includes("개인별 DSR 기준")) return;
+          const div = document.createElement("div");
+          div.className = `warning${creditShortfall > 0 || result.dsr_limit_exceeded ? " danger" : ""}`;
           div.textContent = message;
           warnings.appendChild(div);
         });
-        renderJoint(jointResult, finalShortfallAmount);
-      }
-      function renderJoint(result, separateShortfall) {
-        const jointShortfall = Math.max(0, result.required_credit_loan_krw - result.max_credit_loan_by_dsr_krw);
-        document.getElementById("joint-income").textContent = compactWon(result.combined_monthly_income_krw * 12);
-        document.getElementById("joint-dsr").textContent = `${result.stress_dsr_percent}%`;
-        document.getElementById("joint-required-credit").textContent = compactWon(result.required_credit_loan_krw);
-        document.getElementById("joint-max-credit").textContent = compactWon(result.max_credit_loan_by_dsr_krw);
-        document.getElementById("joint-shortfall").textContent = compactWon(jointShortfall);
-        document.getElementById("joint-shortfall").className = jointShortfall > 0 ? "danger" : "ok";
-        document.getElementById("joint-card-total").textContent = compactWon(result.card_payment_total_krw);
-        document.getElementById("joint-mortgage").textContent = compactWon(result.effective_mortgage_krw);
-        document.getElementById("compare-separate-shortfall").textContent = compactWon(separateShortfall);
-        document.getElementById("compare-separate-shortfall").className = separateShortfall > 0 ? "danger" : "ok";
-        document.getElementById("compare-joint-shortfall").textContent = compactWon(jointShortfall);
-        document.getElementById("compare-joint-shortfall").className = jointShortfall > 0 ? "danger" : "ok";
-        const better = separateShortfall === jointShortfall
-          ? "동일"
-          : separateShortfall < jointShortfall
-            ? "각각 따로"
-            : "공동/합산";
-        document.getElementById("better-plan").textContent = better;
-        const jointWarnings = document.getElementById("joint-warnings");
-        jointWarnings.innerHTML = "";
-        result.warnings.forEach(message => {
-          const div = document.createElement("div");
-          div.className = `warning${jointShortfall > 0 || result.dsr_limit_exceeded ? " danger" : ""}`;
-          div.textContent = message;
-          jointWarnings.appendChild(div);
-        });
       }
       async function calculate() {
-        const basePayload = readForm();
-        const jointPayload = readForm({
-          borrower_mortgage_share_percent: 50,
-          spouse_credit_income_limit_ratio_percent: 100,
-        });
-        const [separateResult, jointResult] = await Promise.all([
-          calculateScenario(basePayload),
-          calculateScenario(jointPayload),
-        ]);
-        renderSeparate(separateResult, jointResult);
+        const result = await calculateScenario(readForm());
+        render(result);
       }
       let timer = null;
       function queueCalculate() {
@@ -404,13 +450,6 @@
       }
       setForm(defaults);
       inputIds.forEach(id => document.getElementById(id)?.addEventListener("input", queueCalculate));
-      document.querySelectorAll(".tab-button").forEach(button => {
-        button.addEventListener("click", () => {
-          const tab = button.dataset.tab;
-          document.querySelectorAll(".tab-button").forEach(item => item.classList.toggle("active", item === button));
-          document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${tab}`));
-        });
-      });
       document.getElementById("reset-button").addEventListener("click", () => { setForm(defaults); calculate(); });
       calculate();
     </script>
