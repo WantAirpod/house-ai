@@ -51,6 +51,10 @@
       .warnings { display:grid; gap:8px; margin-top:16px; }
       .warning { padding:10px 12px; border-left:3px solid var(--warning); background:var(--warning-soft); font-size:12px; line-height:1.5; }
       .warning.danger { border-color:var(--danger); background:var(--danger-soft); }
+      .tabs { display:flex; gap:8px; margin-bottom:14px; }
+      .tab-button.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+      .tab-panel { display:none; }
+      .tab-panel.active { display:block; }
       button { min-height:36px; border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:0 12px; cursor:pointer; }
       @media (max-width:900px) { .grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
       @media (max-width:620px) { .fields,.metrics { grid-template-columns:1fr; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
@@ -133,6 +137,11 @@
             <div class="metric"><div class="metric-label">와이프 신용대출 사용</div><div class="metric-value" id="spouse-credit">-</div><div class="metric-note" id="spouse-credit-note">확인 한도 기준</div></div>
           </div>
           <div class="body">
+            <div class="tabs">
+              <button class="tab-button active" type="button" data-tab="separate">각각 따로</button>
+              <button class="tab-button" type="button" data-tab="joint">공동/합산</button>
+            </div>
+            <div class="tab-panel active" id="tab-separate">
             <table>
               <thead><tr><th>잔금 케이스</th><th>주담대</th><th>카드 이동</th><th>필요 신용대출</th></tr></thead>
               <tbody id="case-table"></tbody>
@@ -153,6 +162,30 @@
               </tbody>
             </table>
             <div class="warnings" id="warnings"></div>
+            </div>
+            <div class="tab-panel" id="tab-joint">
+              <table>
+                <thead><tr><th>공동/합산 시나리오</th><th>금액/비율</th></tr></thead>
+                <tbody>
+                  <tr><td>부부합산 인정소득</td><td id="joint-income">-</td></tr>
+                  <tr><td>공동 주담대 스트레스 DSR</td><td id="joint-dsr">-</td></tr>
+                  <tr><td>필요 신용대출</td><td id="joint-required-credit">-</td></tr>
+                  <tr><td>DSR 기준 최대 신용대출</td><td id="joint-max-credit">-</td></tr>
+                  <tr><td>공동/합산 부족액</td><td id="joint-shortfall">-</td></tr>
+                  <tr><td>카드 납부 총액</td><td id="joint-card-total">-</td></tr>
+                  <tr><td>적용 주담대</td><td id="joint-mortgage">-</td></tr>
+                </tbody>
+              </table>
+              <table>
+                <thead><tr><th>비교</th><th>판단</th></tr></thead>
+                <tbody>
+                  <tr><td>각각 따로 최종 부족</td><td id="compare-separate-shortfall">-</td></tr>
+                  <tr><td>공동/합산 최종 부족</td><td id="compare-joint-shortfall">-</td></tr>
+                  <tr><td>유리한 방식</td><td id="better-plan">-</td></tr>
+                </tbody>
+              </table>
+              <div class="warnings" id="joint-warnings"></div>
+            </div>
           </div>
         </section>
       </div>
@@ -230,7 +263,7 @@
           else el.value = amountFields.has(id) ? values[id] / 10000 : values[id];
         });
       }
-      function readForm() {
+      function readForm(overrides = {}) {
         const payload = {...fixedPayload};
         inputIds.forEach(id => {
           const el = document.getElementById(id);
@@ -244,7 +277,7 @@
         payload.borrower_mortgage_share_percent = 100;
         payload.borrower_credit_income_limit_ratio_percent = 100;
         payload.spouse_credit_income_limit_ratio_percent = 0;
-        return payload;
+        return {...payload, ...overrides};
       }
       function annuity(principal, annualRatePercent, months) {
         if (principal <= 0) return 0;
@@ -253,7 +286,15 @@
         const f = Math.pow(1 + r, months);
         return principal * r * f / (f - 1);
       }
-      function render(result) {
+      async function calculateScenario(payload) {
+        const response = await fetch("/api/financing/calculate", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(payload)
+        });
+        return response.json();
+      }
+      function renderSeparate(result, jointResult) {
         const form = readForm();
         const spouseLimit = form.spouse_verified_credit_limit_krw;
         const spouseCreditUsed = Math.min(result.required_credit_loan_krw, spouseLimit);
@@ -294,14 +335,48 @@
           div.textContent = message;
           warnings.appendChild(div);
         });
+        renderJoint(jointResult, finalShortfallAmount);
+      }
+      function renderJoint(result, separateShortfall) {
+        const jointShortfall = Math.max(0, result.required_credit_loan_krw - result.max_credit_loan_by_dsr_krw);
+        document.getElementById("joint-income").textContent = compactWon(result.combined_monthly_income_krw * 12);
+        document.getElementById("joint-dsr").textContent = `${result.stress_dsr_percent}%`;
+        document.getElementById("joint-required-credit").textContent = compactWon(result.required_credit_loan_krw);
+        document.getElementById("joint-max-credit").textContent = compactWon(result.max_credit_loan_by_dsr_krw);
+        document.getElementById("joint-shortfall").textContent = compactWon(jointShortfall);
+        document.getElementById("joint-shortfall").className = jointShortfall > 0 ? "danger" : "ok";
+        document.getElementById("joint-card-total").textContent = compactWon(result.card_payment_total_krw);
+        document.getElementById("joint-mortgage").textContent = compactWon(result.effective_mortgage_krw);
+        document.getElementById("compare-separate-shortfall").textContent = compactWon(separateShortfall);
+        document.getElementById("compare-separate-shortfall").className = separateShortfall > 0 ? "danger" : "ok";
+        document.getElementById("compare-joint-shortfall").textContent = compactWon(jointShortfall);
+        document.getElementById("compare-joint-shortfall").className = jointShortfall > 0 ? "danger" : "ok";
+        const better = separateShortfall === jointShortfall
+          ? "동일"
+          : separateShortfall < jointShortfall
+            ? "각각 따로"
+            : "공동/합산";
+        document.getElementById("better-plan").textContent = better;
+        const jointWarnings = document.getElementById("joint-warnings");
+        jointWarnings.innerHTML = "";
+        result.warnings.forEach(message => {
+          const div = document.createElement("div");
+          div.className = `warning${jointShortfall > 0 || result.dsr_limit_exceeded ? " danger" : ""}`;
+          div.textContent = message;
+          jointWarnings.appendChild(div);
+        });
       }
       async function calculate() {
-        const response = await fetch("/api/financing/calculate", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify(readForm())
+        const basePayload = readForm();
+        const jointPayload = readForm({
+          borrower_mortgage_share_percent: 50,
+          spouse_credit_income_limit_ratio_percent: 100,
         });
-        render(await response.json());
+        const [separateResult, jointResult] = await Promise.all([
+          calculateScenario(basePayload),
+          calculateScenario(jointPayload),
+        ]);
+        renderSeparate(separateResult, jointResult);
       }
       let timer = null;
       function queueCalculate() {
@@ -310,6 +385,13 @@
       }
       setForm(defaults);
       inputIds.forEach(id => document.getElementById(id)?.addEventListener("input", queueCalculate));
+      document.querySelectorAll(".tab-button").forEach(button => {
+        button.addEventListener("click", () => {
+          const tab = button.dataset.tab;
+          document.querySelectorAll(".tab-button").forEach(item => item.classList.toggle("active", item === button));
+          document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${tab}`));
+        });
+      });
       document.getElementById("reset-button").addEventListener("click", () => { setForm(defaults); calculate(); });
       calculate();
     </script>
