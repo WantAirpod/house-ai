@@ -35,6 +35,8 @@ class FinancingCalculatorRequest(BaseModel):
     credit_rate_percent: float = Field(default=6.5, ge=0)
     credit_term_years: int = Field(default=5, gt=0)
     credit_income_limit_ratio_percent: float = Field(default=100.0, ge=0)
+    borrower_credit_income_limit_ratio_percent: float = Field(default=100.0, ge=0)
+    spouse_credit_income_limit_ratio_percent: float = Field(default=80.0, ge=0)
     credit_stress_rate_percent: float = Field(default=1.5, ge=0)
     credit_stress_threshold_krw: int = Field(default=100_000_000, ge=0)
     family_loan_amount_krw: int = Field(default=65_000_000, ge=0)

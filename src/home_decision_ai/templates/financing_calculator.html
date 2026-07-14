@@ -99,6 +99,10 @@
                 <div class="input-wrap"><input id="borrower_mortgage_share_percent" type="number" min="0" max="100" step="10"><span class="unit">%</span></div>
               </div>
               <div class="field">
+                <label for="spouse_credit_income_limit_ratio_percent">와이프 신용대출 소득상한</label>
+                <div class="input-wrap"><input id="spouse_credit_income_limit_ratio_percent" type="number" min="0" step="10"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
                 <label for="room_deduction_amount_krw">방공제 금액</label>
                 <div class="input-wrap"><input id="room_deduction_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
@@ -135,7 +139,11 @@
               <thead><tr><th>개인별 DSR 계산</th><th>금액/비율</th></tr></thead>
               <tbody>
                 <tr><td>내 신용대출 가능액</td><td id="borrower-capacity">-</td></tr>
+                <tr><td>내 DSR 기준 가능액</td><td id="borrower-capacity-dsr">-</td></tr>
+                <tr><td>내 소득상한 기준 가능액</td><td id="borrower-capacity-income">-</td></tr>
                 <tr><td>와이프 신용대출 가능액</td><td id="spouse-capacity">-</td></tr>
+                <tr><td>와이프 DSR 기준 가능액</td><td id="spouse-capacity-dsr">-</td></tr>
+                <tr><td>와이프 소득상한 기준 가능액</td><td id="spouse-capacity-income">-</td></tr>
                 <tr><td>개인별 DSR 부족액</td><td id="individual-shortfall">-</td></tr>
                 <tr><td>카드 납부 총액</td><td id="card-total">-</td></tr>
                 <tr><td>잔금 시 현금 필요액</td><td id="cash-at-closing">-</td></tr>
@@ -155,7 +163,7 @@
       ]);
       const inputIds = [
         ...amountFields,
-        "borrower_mortgage_share_percent",
+        "borrower_mortgage_share_percent","spouse_credit_income_limit_ratio_percent",
         "room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"
       ];
       const checkboxFields = new Set(["room_deduction_enabled","card_acquisition_tax","first_time_homebuyer_eligible"]);
@@ -172,6 +180,7 @@
         credit_rate_percent: 6.5,
         credit_term_years: 5,
         credit_income_limit_ratio_percent: 100,
+        borrower_credit_income_limit_ratio_percent: 100,
         credit_stress_rate_percent: 1.5,
         credit_stress_threshold_krw: 100000000,
         family_loan_rate_percent: 2.0,
@@ -200,6 +209,7 @@
         borrower_gross_income_krw: 97400000,
         spouse_gross_income_krw: 48000000,
         borrower_mortgage_share_percent: 100,
+        spouse_credit_income_limit_ratio_percent: 80,
         room_deduction_amount_krw: 48000000,
         room_deduction_enabled: false,
         card_acquisition_tax: true,
@@ -230,6 +240,7 @@
           }
         });
         payload.combined_gross_income_krw = payload.borrower_gross_income_krw + payload.spouse_gross_income_krw;
+        payload.borrower_credit_income_limit_ratio_percent = 100;
         return payload;
       }
       function render(result) {
@@ -242,6 +253,10 @@
         document.getElementById("spouse-dsr").textContent = `DSR ${result.spouse_stress_dsr_percent}%`;
         document.getElementById("borrower-capacity").textContent = compactWon(result.borrower_credit_capacity_krw);
         document.getElementById("spouse-capacity").textContent = compactWon(result.spouse_credit_capacity_krw);
+        document.getElementById("borrower-capacity-dsr").textContent = compactWon(result.borrower_credit_capacity_by_dsr_krw);
+        document.getElementById("borrower-capacity-income").textContent = compactWon(result.borrower_credit_capacity_by_income_krw);
+        document.getElementById("spouse-capacity-dsr").textContent = compactWon(result.spouse_credit_capacity_by_dsr_krw);
+        document.getElementById("spouse-capacity-income").textContent = compactWon(result.spouse_credit_capacity_by_income_krw);
         document.getElementById("individual-shortfall").textContent = compactWon(result.individual_credit_shortfall_krw);
         document.getElementById("individual-shortfall").className = result.individual_credit_shortfall_krw > 0 ? "danger" : "ok";
         document.getElementById("card-total").textContent = compactWon(result.card_payment_total_krw);

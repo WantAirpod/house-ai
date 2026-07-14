@@ -72,6 +72,8 @@ class FinancingScenarioInput:
     credit_rate_percent: float = 6.5
     credit_term_years: int = 5
     credit_income_limit_ratio_percent: float = 100.0
+    borrower_credit_income_limit_ratio_percent: float = 100.0
+    spouse_credit_income_limit_ratio_percent: float = 80.0
     credit_stress_rate_percent: float = 1.5
     credit_stress_threshold_krw: int = 100_000_000
     family_loan_amount_krw: int = 65_000_000
@@ -230,6 +232,10 @@ def _individual_credit_capacity(
     return max(0, int(max_credit) - 1_000)
 
 
+def _income_limited_credit_capacity(income_krw: int, ratio_percent: float) -> int:
+    return max(0, round(income_krw * ratio_percent / 100))
+
+
 def _required_credit_for_price(values: FinancingScenarioInput, purchase_price_krw: int) -> int:
     gross_tax = round(purchase_price_krw * values.acquisition_tax_rate_percent / 100)
     discount_applied = (
@@ -315,6 +321,10 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         raise ValueError("LTV ratio must be between 0 and 100")
     if values.credit_income_limit_ratio_percent < 0:
         raise ValueError("credit income limit ratio cannot be negative")
+    if values.borrower_credit_income_limit_ratio_percent < 0:
+        raise ValueError("borrower credit income limit ratio cannot be negative")
+    if values.spouse_credit_income_limit_ratio_percent < 0:
+        raise ValueError("spouse credit income limit ratio cannot be negative")
     if not 0 <= values.borrower_mortgage_share_percent <= 100:
         raise ValueError("borrower mortgage share must be between 0 and 100")
     if values.family_loan_repayment_type not in {"bullet", "amortizing"}:
@@ -536,18 +546,46 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
     spouse_mortgage_share = 1 - borrower_mortgage_share
     borrower_allocated_mortgage_payment = mortgage_stress_payment * borrower_mortgage_share
     spouse_allocated_mortgage_payment = mortgage_stress_payment * spouse_mortgage_share
-    borrower_credit_capacity = _individual_credit_capacity(
+    borrower_credit_capacity_by_dsr = _individual_credit_capacity(
         income_krw=values.borrower_gross_income_krw,
         allocated_mortgage_stress_payment_krw=borrower_allocated_mortgage_payment,
         values=values,
         credit_months=credit_months,
     )
-    spouse_credit_capacity = _individual_credit_capacity(
+    spouse_credit_capacity_by_dsr = _individual_credit_capacity(
         income_krw=values.spouse_gross_income_krw,
         allocated_mortgage_stress_payment_krw=spouse_allocated_mortgage_payment,
         values=values,
         credit_months=credit_months,
     )
+    borrower_credit_capacity_by_income = _income_limited_credit_capacity(
+        values.borrower_gross_income_krw, values.borrower_credit_income_limit_ratio_percent
+    )
+    spouse_credit_capacity_by_income = _income_limited_credit_capacity(
+        values.spouse_gross_income_krw, values.spouse_credit_income_limit_ratio_percent
+    )
+    borrower_credit_capacity = min(
+        borrower_credit_capacity_by_dsr, borrower_credit_capacity_by_income
+    )
+    spouse_credit_capacity = min(spouse_credit_capacity_by_dsr, spouse_credit_capacity_by_income)
+    borrower_credit_capacity_bands = {
+        "conservative_80pct_krw": _income_limited_credit_capacity(
+            values.borrower_gross_income_krw, 80
+        ),
+        "base_100pct_krw": _income_limited_credit_capacity(values.borrower_gross_income_krw, 100),
+        "aggressive_120pct_krw": _income_limited_credit_capacity(
+            values.borrower_gross_income_krw, 120
+        ),
+    }
+    spouse_credit_capacity_bands = {
+        "conservative_60pct_krw": _income_limited_credit_capacity(
+            values.spouse_gross_income_krw, 60
+        ),
+        "base_80pct_krw": _income_limited_credit_capacity(values.spouse_gross_income_krw, 80),
+        "aggressive_100pct_krw": _income_limited_credit_capacity(
+            values.spouse_gross_income_krw, 100
+        ),
+    }
     spouse_suggested_credit = min(required_credit_loan, spouse_credit_capacity)
     borrower_suggested_credit = min(
         max(0, required_credit_loan - spouse_suggested_credit), borrower_credit_capacity
@@ -789,6 +827,14 @@ def calculate_financing_scenario(values: FinancingScenarioInput) -> dict[str, ob
         "borrower_mortgage_share_percent": values.borrower_mortgage_share_percent,
         "borrower_credit_capacity_krw": borrower_credit_capacity,
         "spouse_credit_capacity_krw": spouse_credit_capacity,
+        "borrower_credit_capacity_by_dsr_krw": borrower_credit_capacity_by_dsr,
+        "spouse_credit_capacity_by_dsr_krw": spouse_credit_capacity_by_dsr,
+        "borrower_credit_capacity_by_income_krw": borrower_credit_capacity_by_income,
+        "spouse_credit_capacity_by_income_krw": spouse_credit_capacity_by_income,
+        "borrower_credit_income_limit_ratio_percent": values.borrower_credit_income_limit_ratio_percent,
+        "spouse_credit_income_limit_ratio_percent": values.spouse_credit_income_limit_ratio_percent,
+        "borrower_credit_capacity_bands": borrower_credit_capacity_bands,
+        "spouse_credit_capacity_bands": spouse_credit_capacity_bands,
         "borrower_suggested_credit_krw": round(borrower_suggested_credit),
         "spouse_suggested_credit_krw": round(spouse_suggested_credit),
         "individual_credit_shortfall_krw": round(individual_credit_shortfall),
