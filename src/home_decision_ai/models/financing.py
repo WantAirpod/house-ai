@@ -67,8 +67,8 @@ class FinancingScenarioInput:
     room_deduction_amount_krw: int = 48_000_000
     mortgage_rate_percent: float = 4.7
     mortgage_term_years: int = 40
-    mortgage_stress_rate_percent: float = 3.0
-    mortgage_stress_ratio_percent: float = 40.0
+    mortgage_stress_rate_percent: float = 2.31
+    mortgage_stress_ratio_percent: float = 100.0
     credit_rate_percent: float = 6.5
     credit_term_years: int = 5
     credit_income_limit_ratio_percent: float = 100.0
