@@ -36,7 +36,7 @@
       input { width:100%; height:40px; border:1px solid var(--line); border-radius:6px; padding:0 48px 0 10px; font:inherit; }
       input[readonly] { background:#f5f6f4; color:#555; }
       .unit { position:absolute; right:10px; top:11px; color:var(--muted); font-size:12px; pointer-events:none; }
-      .metrics { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--line); }
+      .metrics { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid var(--line); }
       .metric { padding:15px; border-right:1px solid var(--line); min-height:96px; }
       .metric:last-child { border-right:0; }
       .metric-label { color:var(--muted); font-size:12px; }
@@ -67,8 +67,8 @@
       .bank-title { color:var(--muted); font-size:12px; }
       .bank-result { margin-top:4px; font-size:16px; font-weight:800; }
       .card-input-list { display:grid; gap:10px; margin-top:12px; }
-      .card-input-row { border:1px solid var(--line); border-radius:8px; padding:10px; background:#fafbf9; }
-      .card-input-fields { display:grid; grid-template-columns:2fr 1.3fr 0.9fr 0.9fr auto; gap:8px; align-items:end; }
+      .card-input-row { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fafbf9; }
+      .card-input-fields { display:grid; grid-template-columns:2.4fr 1.5fr 1fr 1fr auto; gap:12px; align-items:end; }
       button { min-height:36px; border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:0 12px; cursor:pointer; }
       .remove-card { color:var(--danger); }
       @media (max-width:1080px) { .grid,.result-grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
@@ -195,8 +195,7 @@
           <div class="metrics">
             <div class="metric"><div class="metric-label">공동명의 DSR</div><div class="metric-value" id="joint-dsr">-</div><div class="metric-note" id="joint-dsr-note">부부합산 소득 기준</div></div>
             <div class="metric"><div class="metric-label">단독명의 DSR</div><div class="metric-value" id="solo-dsr">-</div><div class="metric-note" id="solo-dsr-note">내 소득 기준</div></div>
-            <div class="metric"><div class="metric-label">카드 월 납입</div><div class="metric-value" id="card-monthly-total">-</div><div class="metric-note" id="card-total-note">항목별 할부 합계</div></div>
-            <div class="metric"><div class="metric-label">선택 탭 월 총유출</div><div class="metric-value" id="active-monthly-total">-</div><div class="metric-note">대출 원리금 + 카드</div></div>
+            <div class="metric"><div class="metric-label">카드 월 납입 합계</div><div class="metric-value" id="card-monthly-total">-</div><div class="metric-note" id="card-total-note">항목별 할부 합계</div></div>
           </div>
           <div class="body">
             <div class="result-grid">
@@ -215,6 +214,7 @@
                     <tr><td>인정 연소득</td><td id="joint-income-result">-</td></tr>
                     <tr><td>주담대 DSR 원리금</td><td id="joint-mortgage-dsr-payment">-</td></tr>
                     <tr><td>신용대출 DSR 원리금</td><td id="joint-credit-dsr-payment">-</td></tr>
+                    <tr><td><strong>추가 신용대출 가능 추정</strong></td><td id="joint-extra-credit">-</td></tr>
                   </tbody>
                 </table>
               </section>
@@ -234,6 +234,7 @@
                     <tr><td>인정 연소득</td><td id="solo-income-result">-</td></tr>
                     <tr><td>주담대 DSR 원리금</td><td id="solo-mortgage-dsr-payment">-</td></tr>
                     <tr><td>내 신용대출 DSR 원리금</td><td id="solo-credit-dsr-payment">-</td></tr>
+                    <tr><td><strong>내 추가 신용대출 가능 추정</strong></td><td id="solo-extra-credit">-</td></tr>
                     <tr><td>와이프 신용대출 월상환</td><td id="solo-spouse-credit-payment">-</td></tr>
                   </tbody>
                 </table>
@@ -241,6 +242,10 @@
             </div>
 
             <h3 class="section-title">카드 할부 결과</h3>
+            <div class="result-summary">
+              <div class="pill"><div class="pill-label">카드 결제 총액</div><div class="pill-value" id="card-grand-total">-</div></div>
+              <div class="pill"><div class="pill-label">매월 카드 할부 납입</div><div class="pill-value" id="card-grand-monthly">-</div></div>
+            </div>
             <table>
               <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>월 납입</th></tr></thead>
               <tbody id="card-results"></tbody>
@@ -316,6 +321,14 @@
         const f = Math.pow(1 + r, months);
         return principal * r * f / (f - 1);
       }
+      function principalForPayment(monthlyPayment, annualRatePercent, months) {
+        if (monthlyPayment <= 0) return 0;
+        if (months <= 0) return 0;
+        const r = annualRatePercent / 100 / 12;
+        if (r === 0) return monthlyPayment * months;
+        const f = Math.pow(1 + r, months);
+        return monthlyPayment * (f - 1) / (r * f);
+      }
       function setAmount(id, value) {
         document.getElementById(id).value = Math.round(value / 10000);
       }
@@ -362,7 +375,10 @@
         const creditDsrPayment = annuity(credit, common.creditRate, common.creditMonths);
         const dsr = income > 0 ? (mortgageDsrPayment + creditDsrPayment) * 12 / income * 100 : 0;
         const monthlyPayment = annuity(mortgage, common.mortgageRate, common.mortgageMonths) + annuity(credit, common.creditRate, common.creditMonths);
-        return { income, mortgageDsrPayment, creditDsrPayment, dsr, monthlyPayment, dsrLimit };
+        const monthlyDsrLimit = income * dsrLimit / 100 / 12;
+        const remainingMonthlyDsr = Math.max(0, monthlyDsrLimit - mortgageDsrPayment - creditDsrPayment);
+        const extraCreditCapacity = principalForPayment(remainingMonthlyDsr, common.creditRate, common.creditMonths);
+        return { income, mortgageDsrPayment, creditDsrPayment, dsr, monthlyPayment, dsrLimit, extraCreditCapacity };
       }
       function renderCardInputs() {
         const tbody = document.getElementById("card-inputs");
@@ -422,6 +438,8 @@
         document.getElementById(`${prefix}-dsr-row`).textContent = pct(result.dsr);
         document.getElementById(`${prefix}-dsr-row`).className = `pill-value ${classByLimit(result.dsr, result.dsrLimit)}`;
         document.getElementById(`${prefix}-monthly-payment`).textContent = compactWon(result.monthlyPayment);
+        document.getElementById(`${prefix}-extra-credit`).textContent = compactWon(result.extraCreditCapacity);
+        document.getElementById(`${prefix}-extra-credit`).className = result.extraCreditCapacity > 0 ? "ok" : "danger";
       }
       function calculate() {
         const common = readCommon();
@@ -441,7 +459,6 @@
         const rows = cardRows();
         const cardMonthly = rows.reduce((sum, row) => sum + row.monthly, 0);
         const cardTotal = rows.reduce((sum, row) => sum + row.amount, 0);
-        const activeMonthly = (activeTab === "joint" ? joint.monthlyPayment : solo.monthlyPayment + spouseCreditMonthly) + cardMonthly;
 
         document.getElementById("joint-dsr").textContent = pct(joint.dsr);
         document.getElementById("joint-dsr").className = `metric-value ${classByLimit(joint.dsr, joint.dsrLimit)}`;
@@ -451,7 +468,8 @@
         document.getElementById("solo-dsr-note").textContent = `한도 ${solo.dsrLimit}% · ${solo.dsr <= solo.dsrLimit ? "가능권" : "초과"}`;
         document.getElementById("card-monthly-total").textContent = compactWon(cardMonthly);
         document.getElementById("card-total-note").textContent = `총 결제 ${compactWon(cardTotal)}`;
-        document.getElementById("active-monthly-total").textContent = compactWon(activeMonthly);
+        document.getElementById("card-grand-total").textContent = compactWon(cardTotal);
+        document.getElementById("card-grand-monthly").textContent = compactWon(cardMonthly);
 
         renderPlan("joint", joint);
         renderPlan("solo", solo);
