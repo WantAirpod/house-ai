@@ -19,7 +19,7 @@
       h1 { margin:0; font-size:22px; }
       .subtle { color:var(--muted); font-size:13px; margin-top:4px; }
       main { padding:22px 0 44px; }
-      .grid { display:grid; grid-template-columns:430px 1fr; gap:16px; align-items:start; }
+      .grid { display:grid; grid-template-columns:520px 1fr; gap:16px; align-items:start; }
       .panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
       .panel h2 { margin:0; padding:14px 16px; border-bottom:1px solid var(--line); font-size:15px; }
       .body { padding:16px; }
@@ -53,10 +53,26 @@
       .warning { margin-top:12px; padding:10px 12px; border-left:3px solid var(--warning); background:var(--warning-soft); font-size:12px; line-height:1.5; }
       .warning.danger { border-color:var(--danger); background:var(--danger-soft); }
       .row-actions { display:flex; gap:8px; margin-top:12px; }
+      .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+      .result-card { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
+      .result-card h3 { margin:0; font-size:16px; }
+      .result-summary { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+      .pill { border-radius:8px; padding:10px; background:#f7f8f6; }
+      .pill-label { color:var(--muted); font-size:12px; }
+      .pill-value { margin-top:4px; font-size:19px; font-weight:800; }
+      .bank-judgement { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+      .bank-box { border:1px solid var(--line); border-radius:8px; padding:10px; }
+      .bank-box.ok { border-color:#a8d1bb; background:#edf7f1; }
+      .bank-box.danger { border-color:#e3b0b0; background:#fff0f0; }
+      .bank-title { color:var(--muted); font-size:12px; }
+      .bank-result { margin-top:4px; font-size:16px; font-weight:800; }
+      .card-input-list { display:grid; gap:10px; margin-top:12px; }
+      .card-input-row { border:1px solid var(--line); border-radius:8px; padding:10px; background:#fafbf9; }
+      .card-input-fields { display:grid; grid-template-columns:2fr 1.3fr 0.9fr 0.9fr auto; gap:8px; align-items:end; }
       button { min-height:36px; border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:0 12px; cursor:pointer; }
       .remove-card { color:var(--danger); }
-      @media (max-width:900px) { .grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
-      @media (max-width:620px) { .fields,.metrics { grid-template-columns:1fr; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
+      @media (max-width:1080px) { .grid,.result-grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
+      @media (max-width:720px) { .fields,.metrics,.card-input-fields,.result-summary,.bank-judgement { grid-template-columns:1fr; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
     </style>
   </head>
   <body>
@@ -167,10 +183,7 @@
 
             <h3 class="section-title">카드 할부 항목</h3>
             <div class="mini">필요한 만큼 항목을 추가해. 각 결제액·할부개월·금리를 따로 계산해서 월 납입 합계를 보여준다.</div>
-            <table>
-              <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>금리</th><th></th></tr></thead>
-              <tbody id="card-inputs"></tbody>
-            </table>
+            <div class="card-input-list" id="card-inputs"></div>
             <div class="row-actions">
               <button id="add-card" type="button">카드 항목 추가</button>
             </div>
@@ -186,28 +199,46 @@
             <div class="metric"><div class="metric-label">선택 탭 월 총유출</div><div class="metric-value" id="active-monthly-total">-</div><div class="metric-note">대출 원리금 + 카드</div></div>
           </div>
           <div class="body">
-            <h3 class="section-title">공동명의 결과</h3>
-            <table>
-              <tbody>
-                <tr><td>인정 연소득</td><td id="joint-income-result">-</td></tr>
-                <tr><td>주담대 DSR 원리금</td><td id="joint-mortgage-dsr-payment">-</td></tr>
-                <tr><td>신용대출 DSR 원리금</td><td id="joint-credit-dsr-payment">-</td></tr>
-                <tr><td><strong>DSR</strong></td><td id="joint-dsr-row">-</td></tr>
-                <tr><td>실제 월 대출상환</td><td id="joint-monthly-payment">-</td></tr>
-              </tbody>
-            </table>
+            <div class="result-grid">
+              <section class="result-card">
+                <h3>공동명의 결과</h3>
+                <div class="result-summary">
+                  <div class="pill"><div class="pill-label">DSR</div><div class="pill-value" id="joint-dsr-row">-</div></div>
+                  <div class="pill"><div class="pill-label">실제 월 대출상환</div><div class="pill-value" id="joint-monthly-payment">-</div></div>
+                </div>
+                <div class="bank-judgement">
+                  <div class="bank-box" id="joint-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="joint-bank1">-</div></div>
+                  <div class="bank-box" id="joint-bank2-box"><div class="bank-title">2금융권 50%</div><div class="bank-result" id="joint-bank2">-</div></div>
+                </div>
+                <table>
+                  <tbody>
+                    <tr><td>인정 연소득</td><td id="joint-income-result">-</td></tr>
+                    <tr><td>주담대 DSR 원리금</td><td id="joint-mortgage-dsr-payment">-</td></tr>
+                    <tr><td>신용대출 DSR 원리금</td><td id="joint-credit-dsr-payment">-</td></tr>
+                  </tbody>
+                </table>
+              </section>
 
-            <h3 class="section-title">단독명의(나) 결과</h3>
-            <table>
-              <tbody>
-                <tr><td>인정 연소득</td><td id="solo-income-result">-</td></tr>
-                <tr><td>주담대 DSR 원리금</td><td id="solo-mortgage-dsr-payment">-</td></tr>
-                <tr><td>내 신용대출 DSR 원리금</td><td id="solo-credit-dsr-payment">-</td></tr>
-                <tr><td><strong>내 DSR</strong></td><td id="solo-dsr-row">-</td></tr>
-                <tr><td>와이프 신용대출 월상환</td><td id="solo-spouse-credit-payment">-</td></tr>
-                <tr><td>실제 월 대출상환</td><td id="solo-monthly-payment">-</td></tr>
-              </tbody>
-            </table>
+              <section class="result-card">
+                <h3>단독명의(나) 결과</h3>
+                <div class="result-summary">
+                  <div class="pill"><div class="pill-label">내 DSR</div><div class="pill-value" id="solo-dsr-row">-</div></div>
+                  <div class="pill"><div class="pill-label">실제 월 대출상환</div><div class="pill-value" id="solo-monthly-payment">-</div></div>
+                </div>
+                <div class="bank-judgement">
+                  <div class="bank-box" id="solo-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="solo-bank1">-</div></div>
+                  <div class="bank-box" id="solo-bank2-box"><div class="bank-title">2금융권 50%</div><div class="bank-result" id="solo-bank2">-</div></div>
+                </div>
+                <table>
+                  <tbody>
+                    <tr><td>인정 연소득</td><td id="solo-income-result">-</td></tr>
+                    <tr><td>주담대 DSR 원리금</td><td id="solo-mortgage-dsr-payment">-</td></tr>
+                    <tr><td>내 신용대출 DSR 원리금</td><td id="solo-credit-dsr-payment">-</td></tr>
+                    <tr><td>와이프 신용대출 월상환</td><td id="solo-spouse-credit-payment">-</td></tr>
+                  </tbody>
+                </table>
+              </section>
+            </div>
 
             <h3 class="section-title">카드 할부 결과</h3>
             <table>
@@ -265,6 +296,18 @@
       };
       const pct = v => `${(Number.isFinite(v) ? v : 0).toFixed(1)}%`;
       const classByLimit = (value, limit) => value > limit ? "danger" : "ok";
+      function renderBank(prefix, dsr) {
+        [
+          { id:"bank1", limit:40 },
+          { id:"bank2", limit:50 },
+        ].forEach(bank => {
+          const ok = dsr <= bank.limit;
+          const result = document.getElementById(`${prefix}-${bank.id}`);
+          const box = document.getElementById(`${prefix}-${bank.id}-box`);
+          result.textContent = ok ? "가능권" : "초과";
+          box.className = `bank-box ${ok ? "ok" : "danger"}`;
+        });
+      }
       function annuity(principal, annualRatePercent, months) {
         if (principal <= 0) return 0;
         if (months <= 0) return 0;
@@ -325,15 +368,30 @@
         const tbody = document.getElementById("card-inputs");
         tbody.innerHTML = "";
         cards.forEach((card, index) => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td><input data-card="${index}" data-field="label" value="${card.label}"></td>
-            <td><div class="input-wrap"><input data-card="${index}" data-field="amount" type="number" min="0" step="10" value="${Math.round(card.amount/10000)}"><span class="unit">만원</span></div></td>
-            <td><div class="input-wrap"><input data-card="${index}" data-field="months" type="number" min="1" step="1" value="${card.months}"><span class="unit">개월</span></div></td>
-            <td><div class="input-wrap"><input data-card="${index}" data-field="rate" type="number" min="0" step="0.1" value="${card.rate}"><span class="unit">%</span></div></td>
-            <td><button class="remove-card" type="button" data-remove="${index}">삭제</button></td>
+          const row = document.createElement("div");
+          row.className = "card-input-row";
+          row.innerHTML = `
+            <div class="card-input-fields">
+              <div>
+                <label>항목명</label>
+                <input data-card="${index}" data-field="label" value="${card.label}">
+              </div>
+              <div>
+                <label>결제액</label>
+                <div class="input-wrap"><input data-card="${index}" data-field="amount" type="number" min="0" step="10" value="${Math.round(card.amount/10000)}"><span class="unit">만원</span></div>
+              </div>
+              <div>
+                <label>할부개월</label>
+                <div class="input-wrap"><input data-card="${index}" data-field="months" type="number" min="1" step="1" value="${card.months}"><span class="unit">개월</span></div>
+              </div>
+              <div>
+                <label>할부금리</label>
+                <div class="input-wrap"><input data-card="${index}" data-field="rate" type="number" min="0" step="0.1" value="${card.rate}"><span class="unit">%</span></div>
+              </div>
+              <button class="remove-card" type="button" data-remove="${index}">삭제</button>
+            </div>
           `;
-          tbody.appendChild(tr);
+          tbody.appendChild(row);
         });
         tbody.querySelectorAll("input").forEach(input => input.addEventListener("input", event => {
           const index = Number(event.target.dataset.card);
@@ -362,7 +420,7 @@
         document.getElementById(`${prefix}-mortgage-dsr-payment`).textContent = compactWon(result.mortgageDsrPayment);
         document.getElementById(`${prefix}-credit-dsr-payment`).textContent = compactWon(result.creditDsrPayment);
         document.getElementById(`${prefix}-dsr-row`).textContent = pct(result.dsr);
-        document.getElementById(`${prefix}-dsr-row`).className = classByLimit(result.dsr, result.dsrLimit);
+        document.getElementById(`${prefix}-dsr-row`).className = `pill-value ${classByLimit(result.dsr, result.dsrLimit)}`;
         document.getElementById(`${prefix}-monthly-payment`).textContent = compactWon(result.monthlyPayment);
       }
       function calculate() {
@@ -397,6 +455,8 @@
 
         renderPlan("joint", joint);
         renderPlan("solo", solo);
+        renderBank("joint", joint.dsr);
+        renderBank("solo", solo.dsr);
         document.getElementById("solo-spouse-credit-payment").textContent = compactWon(spouseCreditMonthly);
 
         const cardResultBody = document.getElementById("card-results");
