@@ -14,12 +14,12 @@
       * { box-sizing:border-box; }
       body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
       header { background:var(--surface); border-bottom:1px solid var(--line); }
-      .wrap { width:min(1180px, calc(100% - 28px)); margin:0 auto; }
+      .wrap { width:min(1380px, calc(100% - 28px)); margin:0 auto; }
       .header-inner { min-height:68px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
       h1 { margin:0; font-size:22px; }
       .subtle { color:var(--muted); font-size:13px; margin-top:4px; }
       main { padding:22px 0 44px; }
-      .grid { display:grid; grid-template-columns:520px 1fr; gap:16px; align-items:start; }
+      .grid { display:grid; grid-template-columns:640px 1fr; gap:16px; align-items:start; }
       .panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
       .panel h2 { margin:0; padding:14px 16px; border-bottom:1px solid var(--line); font-size:15px; }
       .body { padding:16px; }
@@ -68,11 +68,13 @@
       .bank-result { margin-top:4px; font-size:16px; font-weight:800; }
       .card-input-list { display:grid; gap:10px; margin-top:12px; }
       .card-input-row { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fafbf9; }
-      .card-input-fields { display:grid; grid-template-columns:2.4fr 1.5fr 1fr 1fr auto; gap:12px; align-items:end; }
+      .card-input-fields { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:12px; align-items:end; }
+      .card-input-fields .card-name { grid-column:1 / -1; }
+      .fixed-payment-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
       button { min-height:36px; border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:0 12px; cursor:pointer; }
       .remove-card { color:var(--danger); }
       @media (max-width:1080px) { .grid,.result-grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
-      @media (max-width:720px) { .fields,.metrics,.card-input-fields,.result-summary,.bank-judgement { grid-template-columns:1fr; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
+      @media (max-width:720px) { .fields,.metrics,.card-input-fields,.result-summary,.bank-judgement,.fixed-payment-grid { grid-template-columns:1fr; } .card-input-fields .card-name { grid-column:auto; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
     </style>
   </head>
   <body>
@@ -250,6 +252,16 @@
               <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>월 납입</th></tr></thead>
               <tbody id="card-results"></tbody>
             </table>
+            <h3 class="section-title">대출 월 납입 고정 요약</h3>
+            <div class="mini">카드 할부와 별도로, 입력한 주담대·신용대출 조건으로 매달 나가는 대출 상환액입니다.</div>
+            <div class="fixed-payment-grid">
+              <div class="pill"><div class="pill-label">공동명의 대출 월 납입</div><div class="pill-value" id="loan-joint-monthly-fixed">-</div></div>
+              <div class="pill"><div class="pill-label">단독명의 내 대출 월 납입</div><div class="pill-value" id="loan-solo-monthly-fixed">-</div></div>
+              <div class="pill"><div class="pill-label">와이프 신용대출 월 납입</div><div class="pill-value" id="loan-spouse-monthly-fixed">-</div></div>
+              <div class="pill"><div class="pill-label">공동명의 카드 포함 월 납입</div><div class="pill-value" id="loan-joint-with-card-fixed">-</div></div>
+              <div class="pill"><div class="pill-label">단독명의 카드 포함 월 납입</div><div class="pill-value" id="loan-solo-with-card-fixed">-</div></div>
+              <div class="pill"><div class="pill-label">카드 월 납입</div><div class="pill-value" id="loan-card-monthly-fixed">-</div></div>
+            </div>
             <div id="warnings"></div>
           </div>
         </section>
@@ -388,7 +400,7 @@
           row.className = "card-input-row";
           row.innerHTML = `
             <div class="card-input-fields">
-              <div>
+              <div class="card-name">
                 <label>항목명</label>
                 <input data-card="${index}" data-field="label" value="${card.label}">
               </div>
@@ -470,6 +482,12 @@
         document.getElementById("card-total-note").textContent = `총 결제 ${compactWon(cardTotal)}`;
         document.getElementById("card-grand-total").textContent = compactWon(cardTotal);
         document.getElementById("card-grand-monthly").textContent = compactWon(cardMonthly);
+        document.getElementById("loan-joint-monthly-fixed").textContent = compactWon(joint.monthlyPayment);
+        document.getElementById("loan-solo-monthly-fixed").textContent = compactWon(solo.monthlyPayment);
+        document.getElementById("loan-spouse-monthly-fixed").textContent = compactWon(spouseCreditMonthly);
+        document.getElementById("loan-joint-with-card-fixed").textContent = compactWon(joint.monthlyPayment + cardMonthly);
+        document.getElementById("loan-solo-with-card-fixed").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
+        document.getElementById("loan-card-monthly-fixed").textContent = compactWon(cardMonthly);
 
         renderPlan("joint", joint);
         renderPlan("solo", solo);
