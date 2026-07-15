@@ -482,8 +482,27 @@
         const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
         return JSON.parse(decodeURIComponent(atob(padded)));
       }
-      function loadSharedState() {
+      async function loadSharedState() {
         const params = new URLSearchParams(window.location.search);
+        const shareId = params.get("s");
+        if (shareId) {
+          try {
+            const response = await fetch(`/api/financing-calculator/share/${encodeURIComponent(shareId)}`);
+            if (!response.ok) throw new Error("share not found");
+            const payload = await response.json();
+            const loaded = applyState(payload.state);
+            if (loaded) {
+              saveState();
+              const status = document.getElementById("save-status");
+              if (status) status.textContent = "짧은 공유 링크값 불러옴";
+            }
+            return loaded;
+          } catch {
+            const status = document.getElementById("save-status");
+            if (status) status.textContent = "짧은 공유 링크 오류";
+            return false;
+          }
+        }
         const shared = params.get("state");
         if (!shared) return false;
         try {
@@ -502,15 +521,30 @@
       }
       async function copyShareLink() {
         saveState();
-        const url = new URL(window.location.href);
-        url.searchParams.set("state", encodeShareState(readState()));
-        const shareUrl = url.toString();
+        let shareUrl = "";
         try {
+          const response = await fetch("/api/financing-calculator/share", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ state: readState() }),
+          });
+          if (!response.ok) throw new Error("share save failed");
+          const payload = await response.json();
+          shareUrl = payload.url;
           await navigator.clipboard.writeText(shareUrl);
           const status = document.getElementById("save-status");
-          if (status) status.textContent = "공유 링크 복사됨";
+          if (status) status.textContent = "짧은 공유 링크 복사됨";
         } catch {
-          window.prompt("공유 링크를 복사해줘", shareUrl);
+          const url = new URL(window.location.href);
+          url.searchParams.set("state", encodeShareState(readState()));
+          shareUrl = shareUrl || url.toString();
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            const status = document.getElementById("save-status");
+            if (status) status.textContent = "긴 공유 링크 복사됨";
+          } catch {
+            window.prompt("공유 링크를 복사해줘", shareUrl);
+          }
         }
       }
       function readCommon() {
@@ -754,8 +788,11 @@
         saveState();
         queueCalculate();
       }));
-      if (!loadSharedState() && !loadState()) setForm();
-      calculate();
+      async function initialize() {
+        if (!await loadSharedState() && !loadState()) setForm();
+        calculate();
+      }
+      initialize();
     </script>
   </body>
 </html>

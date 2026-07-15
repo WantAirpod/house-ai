@@ -13,7 +13,10 @@ def build_engine():
     if not settings.database_url:
         msg = "DATABASE_URL is required for database operations."
         raise RuntimeError(msg)
-    return create_engine(settings.database_url, pool_pre_ping=True)
+    database_url = settings.database_url
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return create_engine(database_url, pool_pre_ping=True)
 
 
 engine = None

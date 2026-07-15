@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import json
+import secrets
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from home_decision_ai.config import load_project_config
+from home_decision_ai.db import session as db_session
+from home_decision_ai.db.base import Base
+from home_decision_ai.db.models import FinancingCalculatorShare
 from home_decision_ai.models.financing import FinancingScenarioInput, calculate_financing_scenario
 from home_decision_ai.settings import get_settings
 
@@ -64,6 +69,20 @@ class FinancingCalculatorRequest(BaseModel):
         return FinancingScenarioInput(**self.model_dump())
 
 
+class FinancingCalculatorShareRequest(BaseModel):
+    state: dict[str, Any]
+
+
+class FinancingCalculatorShareResponse(BaseModel):
+    id: str
+    url: str
+
+
+class FinancingCalculatorSharedStateResponse(BaseModel):
+    id: str
+    state: dict[str, Any]
+
+
 def resolve_config_dir(config_dir: str) -> Path:
     path = Path(config_dir)
     if path.is_absolute() or path.exists():
@@ -76,6 +95,14 @@ def resolve_config_dir(config_dir: str) -> Path:
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name)
+
+    @app.on_event("startup")
+    def startup() -> None:
+        if not settings.is_database_enabled:
+            return
+        db_session.configure_database()
+        assert db_session.engine is not None
+        Base.metadata.create_all(bind=db_session.engine)
 
     @app.get("/health")
     def health() -> dict[str, object]:
@@ -218,6 +245,53 @@ def create_app() -> FastAPI:
             Path(__file__).resolve().parents[1] / "templates" / "financing_calculator.html"
         )
         return HTMLResponse(template_path.read_text(encoding="utf-8"))
+
+    @app.post("/api/financing-calculator/share")
+    def create_financing_calculator_share(
+        payload: FinancingCalculatorShareRequest,
+        request: Request,
+    ) -> FinancingCalculatorShareResponse:
+        if not settings.is_database_enabled:
+            raise HTTPException(status_code=503, detail="Database is not configured.")
+
+        state_json = json.dumps(payload.state, ensure_ascii=False, separators=(",", ":"))
+        if db_session.SessionLocal is None:
+            db_session.configure_database()
+        assert db_session.SessionLocal is not None
+        session = db_session.SessionLocal()
+        try:
+            for _ in range(8):
+                share_id = secrets.token_hex(4)
+                if not session.get(FinancingCalculatorShare, share_id):
+                    session.add(FinancingCalculatorShare(id=share_id, state_json=state_json))
+                    session.commit()
+                    url = str(request.url_for("financing_calculator")).split("?")[0]
+                    return FinancingCalculatorShareResponse(id=share_id, url=f"{url}?s={share_id}")
+        finally:
+            session.close()
+        raise HTTPException(status_code=500, detail="Could not create share id.")
+
+    @app.get("/api/financing-calculator/share/{share_id}")
+    def get_financing_calculator_share(share_id: str) -> FinancingCalculatorSharedStateResponse:
+        if not settings.is_database_enabled:
+            raise HTTPException(status_code=503, detail="Database is not configured.")
+        if len(share_id) > 16:
+            raise HTTPException(status_code=404, detail="Share not found.")
+
+        if db_session.SessionLocal is None:
+            db_session.configure_database()
+        assert db_session.SessionLocal is not None
+        session = db_session.SessionLocal()
+        try:
+            share = session.get(FinancingCalculatorShare, share_id)
+            if not share:
+                raise HTTPException(status_code=404, detail="Share not found.")
+            return FinancingCalculatorSharedStateResponse(
+                id=share.id,
+                state=json.loads(share.state_json),
+            )
+        finally:
+            session.close()
 
     @app.get("/financing-plan", response_class=HTMLResponse)
     def financing_plan() -> HTMLResponse:

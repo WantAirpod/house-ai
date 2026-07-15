@@ -69,3 +69,15 @@ class Report(Base):
         default=lambda: datetime.now(UTC),
         index=True,
     )
+
+
+class FinancingCalculatorShare(Base):
+    __tablename__ = "financing_calculator_shares"
+
+    id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    state_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
