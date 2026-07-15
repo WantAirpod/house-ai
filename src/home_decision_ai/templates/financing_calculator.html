@@ -57,6 +57,7 @@
       .result-card { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
       .result-card h3 { margin:0; font-size:16px; }
       .result-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
+      .result-summary.card-total-summary { grid-template-columns:repeat(4,1fr); }
       .pill { border-radius:8px; padding:10px; background:#f7f8f6; }
       .pill-label { color:var(--muted); font-size:12px; }
       .pill-value { margin-top:4px; font-size:19px; font-weight:800; }
@@ -245,9 +246,11 @@
             </div>
 
             <h3 class="section-title">카드 할부 결과</h3>
-            <div class="result-summary">
+            <div class="result-summary card-total-summary">
               <div class="pill"><div class="pill-label">카드 결제 총액</div><div class="pill-value" id="card-grand-total">-</div></div>
               <div class="pill"><div class="pill-label">매월 카드 할부 납입</div><div class="pill-value" id="card-grand-monthly">-</div></div>
+              <div class="pill"><div class="pill-label">공동명의 최종 월 납입</div><div class="pill-value" id="joint-final-monthly-total">-</div></div>
+              <div class="pill"><div class="pill-label">단독명의 최종 월 납입</div><div class="pill-value" id="solo-final-monthly-total">-</div></div>
             </div>
             <table>
               <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>월 납입</th></tr></thead>
@@ -475,6 +478,8 @@
         document.getElementById("card-grand-monthly").textContent = compactWon(cardMonthly);
         document.getElementById("joint-with-card-monthly").textContent = compactWon(joint.monthlyPayment + cardMonthly);
         document.getElementById("solo-with-card-monthly").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
+        document.getElementById("joint-final-monthly-total").textContent = compactWon(joint.monthlyPayment + cardMonthly);
+        document.getElementById("solo-final-monthly-total").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
 
         renderPlan("joint", joint);
         renderPlan("solo", solo);
