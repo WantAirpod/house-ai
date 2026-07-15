@@ -215,9 +215,6 @@
                   <div class="pill"><div class="pill-label">DSR</div><div class="pill-value" id="joint-dsr-row">-</div></div>
                   <div class="pill"><div class="pill-label">대출 월 납입</div><div class="pill-value" id="joint-monthly-payment">-</div></div>
                   <div class="pill"><div class="pill-label">카드 포함 월 납입</div><div class="pill-value" id="joint-with-card-monthly">-</div></div>
-                  <div class="pill"><div class="pill-label">최종 수입</div><div class="pill-value" id="joint-final-income">-</div></div>
-                  <div class="pill"><div class="pill-label">최종 지출</div><div class="pill-value" id="joint-final-expense">-</div></div>
-                  <div class="pill"><div class="pill-label">남는 돈</div><div class="pill-value" id="joint-final-balance">-</div></div>
                 </div>
                 <div class="bank-judgement">
                   <div class="bank-box" id="joint-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="joint-bank1">-</div></div>
@@ -238,9 +235,6 @@
                   <div class="pill"><div class="pill-label">내 DSR</div><div class="pill-value" id="solo-dsr-row">-</div></div>
                   <div class="pill"><div class="pill-label">내 대출 월 납입</div><div class="pill-value" id="solo-monthly-payment">-</div></div>
                   <div class="pill"><div class="pill-label">카드 포함 월 납입</div><div class="pill-value" id="solo-with-card-monthly">-</div></div>
-                  <div class="pill"><div class="pill-label">최종 수입</div><div class="pill-value" id="solo-final-income">-</div></div>
-                  <div class="pill"><div class="pill-label">최종 지출</div><div class="pill-value" id="solo-final-expense">-</div></div>
-                  <div class="pill"><div class="pill-label">남는 돈</div><div class="pill-value" id="solo-final-balance">-</div></div>
                 </div>
                 <div class="bank-judgement">
                   <div class="bank-box" id="solo-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="solo-bank1">-</div></div>
@@ -267,6 +261,14 @@
             <table>
               <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>월 납입</th></tr></thead>
               <tbody id="card-results"></tbody>
+            </table>
+            <h3 class="section-title">최종 결과 리포트</h3>
+            <table>
+              <thead><tr><th>구분</th><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
+              <tbody>
+                <tr><td>공동명의</td><td id="joint-final-income">-</td><td id="joint-final-expense">-</td><td id="joint-final-balance">-</td></tr>
+                <tr><td>단독명의</td><td id="solo-final-income">-</td><td id="solo-final-expense">-</td><td id="solo-final-balance">-</td></tr>
+              </tbody>
             </table>
             <div id="warnings"></div>
           </div>
@@ -537,11 +539,11 @@
         document.getElementById("joint-final-income").textContent = compactWon(netMonthlyIncome);
         document.getElementById("joint-final-expense").textContent = compactWon(jointFinalExpense);
         document.getElementById("joint-final-balance").textContent = compactWon(jointBalance);
-        document.getElementById("joint-final-balance").className = `pill-value ${jointBalance >= 0 ? "ok" : "danger"}`;
+        document.getElementById("joint-final-balance").className = jointBalance >= 0 ? "ok" : "danger";
         document.getElementById("solo-final-income").textContent = compactWon(netMonthlyIncome);
         document.getElementById("solo-final-expense").textContent = compactWon(soloFinalExpense);
         document.getElementById("solo-final-balance").textContent = compactWon(soloBalance);
-        document.getElementById("solo-final-balance").className = `pill-value ${soloBalance >= 0 ? "ok" : "danger"}`;
+        document.getElementById("solo-final-balance").className = soloBalance >= 0 ? "ok" : "danger";
         document.getElementById("joint-final-monthly-total").textContent = compactWon(joint.monthlyPayment + cardMonthly);
         document.getElementById("solo-final-monthly-total").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
 
