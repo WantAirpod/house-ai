@@ -530,7 +530,7 @@
           });
           if (!response.ok) throw new Error("share save failed");
           const payload = await response.json();
-          shareUrl = payload.url;
+          shareUrl = `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(payload.id)}`;
           await navigator.clipboard.writeText(shareUrl);
           const status = document.getElementById("save-status");
           if (status) status.textContent = "짧은 공유 링크 복사됨";

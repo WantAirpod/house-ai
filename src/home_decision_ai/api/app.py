@@ -265,7 +265,12 @@ def create_app() -> FastAPI:
                 if not session.get(FinancingCalculatorShare, share_id):
                     session.add(FinancingCalculatorShare(id=share_id, state_json=state_json))
                     session.commit()
-                    url = str(request.url_for("financing_calculator")).split("?")[0]
+                    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+                    host = request.headers.get(
+                        "x-forwarded-host",
+                        request.headers.get("host", request.url.netloc),
+                    )
+                    url = f"{proto}://{host}/financing-calculator"
                     return FinancingCalculatorShareResponse(id=share_id, url=f"{url}?s={share_id}")
         finally:
             session.close()
