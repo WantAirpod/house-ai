@@ -53,6 +53,8 @@
       .warning { margin-top:12px; padding:10px 12px; border-left:3px solid var(--warning); background:var(--warning-soft); font-size:12px; line-height:1.5; }
       .warning.danger { border-color:var(--danger); background:var(--danger-soft); }
       .row-actions { display:flex; gap:8px; margin-top:12px; }
+      .header-actions { display:flex; align-items:center; gap:10px; }
+      .save-status { color:var(--muted); font-size:12px; white-space:nowrap; }
       .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
       .result-card { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
       .result-card h3 { margin:0; font-size:16px; }
@@ -84,7 +86,10 @@
           <h1>기흥역센트럴푸르지오 잔금 계산기</h1>
           <div class="subtle">공동명의 / 단독명의 DSR 비교 · 주담대/신용대출 직접 입력 · 카드 할부 항목 추가 가능</div>
         </div>
-        <button id="reset-button" type="button">기본값 복원</button>
+        <div class="header-actions">
+          <span class="save-status" id="save-status">자동 저장 대기</span>
+          <button id="reset-button" type="button">기본값 복원</button>
+        </div>
       </div>
     </header>
     <main class="wrap">
@@ -395,6 +400,8 @@
       }
       function saveState() {
         localStorage.setItem(storageKey, JSON.stringify(readState()));
+        const status = document.getElementById("save-status");
+        if (status) status.textContent = "자동 저장됨";
       }
       function applyState(state) {
         if (!state || !state.values) return false;
@@ -409,6 +416,8 @@
           document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
         }
         renderCardInputs();
+        const status = document.getElementById("save-status");
+        if (status) status.textContent = "저장값 불러옴";
         return true;
       }
       function loadState() {
@@ -595,6 +604,8 @@
         document.querySelectorAll(".tab-button").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
         document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
         setForm();
+        const status = document.getElementById("save-status");
+        if (status) status.textContent = "기본값으로 초기화";
         calculate();
       });
       inputIds.forEach(id => document.getElementById(id)?.addEventListener("input", () => {
