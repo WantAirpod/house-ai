@@ -178,6 +178,14 @@
                 <div class="input-wrap"><input id="spouse_credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
               <div class="field">
+                <label for="borrower_net_monthly_income_krw">내 세후 월급</label>
+                <div class="input-wrap"><input id="borrower_net_monthly_income_krw" type="number" min="0" step="10"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
+                <label for="spouse_net_monthly_income_krw">와이프 세후 월급</label>
+                <div class="input-wrap"><input id="spouse_net_monthly_income_krw" type="number" min="0" step="10"><span class="unit">만원</span></div>
+              </div>
+              <div class="field">
                 <label for="credit_term_years">신용대출 만기</label>
                 <div class="input-wrap"><input id="credit_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
               </div>
@@ -207,6 +215,9 @@
                   <div class="pill"><div class="pill-label">DSR</div><div class="pill-value" id="joint-dsr-row">-</div></div>
                   <div class="pill"><div class="pill-label">대출 월 납입</div><div class="pill-value" id="joint-monthly-payment">-</div></div>
                   <div class="pill"><div class="pill-label">카드 포함 월 납입</div><div class="pill-value" id="joint-with-card-monthly">-</div></div>
+                  <div class="pill"><div class="pill-label">최종 수입</div><div class="pill-value" id="joint-final-income">-</div></div>
+                  <div class="pill"><div class="pill-label">최종 지출</div><div class="pill-value" id="joint-final-expense">-</div></div>
+                  <div class="pill"><div class="pill-label">남는 돈</div><div class="pill-value" id="joint-final-balance">-</div></div>
                 </div>
                 <div class="bank-judgement">
                   <div class="bank-box" id="joint-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="joint-bank1">-</div></div>
@@ -227,6 +238,9 @@
                   <div class="pill"><div class="pill-label">내 DSR</div><div class="pill-value" id="solo-dsr-row">-</div></div>
                   <div class="pill"><div class="pill-label">내 대출 월 납입</div><div class="pill-value" id="solo-monthly-payment">-</div></div>
                   <div class="pill"><div class="pill-label">카드 포함 월 납입</div><div class="pill-value" id="solo-with-card-monthly">-</div></div>
+                  <div class="pill"><div class="pill-label">최종 수입</div><div class="pill-value" id="solo-final-income">-</div></div>
+                  <div class="pill"><div class="pill-label">최종 지출</div><div class="pill-value" id="solo-final-expense">-</div></div>
+                  <div class="pill"><div class="pill-label">남는 돈</div><div class="pill-value" id="solo-final-balance">-</div></div>
                 </div>
                 <div class="bank-judgement">
                   <div class="bank-box" id="solo-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="solo-bank1">-</div></div>
@@ -276,6 +290,8 @@
         mortgageTerm: 30,
         creditRate: 6.5,
         spouseCreditRate: 11,
+        borrowerNetMonthlyIncome: 5500000,
+        spouseNetMonthlyIncome: 3300000,
         creditTerm: 5,
         cards: [
           { label:"취득세", amount:31361000, months:12, rate:0 },
@@ -296,7 +312,8 @@
       const inputIds = [
         ...amountIds, "joint_dsr_limit_percent","solo_dsr_limit_percent",
         "mortgage_rate_percent","mortgage_dsr_rate_percent","mortgage_term_years",
-        "credit_rate_percent","spouse_credit_rate_percent","credit_term_years",
+        "credit_rate_percent","spouse_credit_rate_percent","borrower_net_monthly_income_krw",
+        "spouse_net_monthly_income_krw","credit_term_years",
       ];
 
       const compactWon = v => {
@@ -361,6 +378,8 @@
         document.getElementById("mortgage_term_years").value = defaults.mortgageTerm;
         document.getElementById("credit_rate_percent").value = defaults.creditRate;
         document.getElementById("spouse_credit_rate_percent").value = defaults.spouseCreditRate;
+        setAmount("borrower_net_monthly_income_krw", defaults.borrowerNetMonthlyIncome);
+        setAmount("spouse_net_monthly_income_krw", defaults.spouseNetMonthlyIncome);
         document.getElementById("credit_term_years").value = defaults.creditTerm;
         cards = defaults.cards.map(item => ({...item}));
         renderCardInputs();
@@ -510,6 +529,19 @@
         document.getElementById("card-grand-monthly").textContent = compactWon(cardMonthly);
         document.getElementById("joint-with-card-monthly").textContent = compactWon(joint.monthlyPayment + cardMonthly);
         document.getElementById("solo-with-card-monthly").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
+        const netMonthlyIncome = getAmount("borrower_net_monthly_income_krw") + getAmount("spouse_net_monthly_income_krw");
+        const jointFinalExpense = joint.monthlyPayment + cardMonthly;
+        const soloFinalExpense = solo.monthlyPayment + spouseCreditMonthly + cardMonthly;
+        const jointBalance = netMonthlyIncome - jointFinalExpense;
+        const soloBalance = netMonthlyIncome - soloFinalExpense;
+        document.getElementById("joint-final-income").textContent = compactWon(netMonthlyIncome);
+        document.getElementById("joint-final-expense").textContent = compactWon(jointFinalExpense);
+        document.getElementById("joint-final-balance").textContent = compactWon(jointBalance);
+        document.getElementById("joint-final-balance").className = `pill-value ${jointBalance >= 0 ? "ok" : "danger"}`;
+        document.getElementById("solo-final-income").textContent = compactWon(netMonthlyIncome);
+        document.getElementById("solo-final-expense").textContent = compactWon(soloFinalExpense);
+        document.getElementById("solo-final-balance").textContent = compactWon(soloBalance);
+        document.getElementById("solo-final-balance").className = `pill-value ${soloBalance >= 0 ? "ok" : "danger"}`;
         document.getElementById("joint-final-monthly-total").textContent = compactWon(joint.monthlyPayment + cardMonthly);
         document.getElementById("solo-final-monthly-total").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
 
