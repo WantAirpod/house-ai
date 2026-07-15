@@ -63,6 +63,11 @@
       .pill { border-radius:8px; padding:10px; background:#f7f8f6; }
       .pill-label { color:var(--muted); font-size:12px; }
       .pill-value { margin-top:4px; font-size:19px; font-weight:800; }
+      .final-report { margin-top:20px; border:2px solid var(--accent); border-radius:10px; padding:14px; background:#fbfffc; box-shadow:0 6px 16px rgba(23,107,72,0.08); }
+      .final-report h3 { margin:0 0 8px; font-size:17px; color:var(--accent); }
+      .final-report-panel { display:none; }
+      .final-report-panel.active { display:block; }
+      .final-balance { font-size:24px; font-weight:900; }
       .bank-judgement { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
       .bank-box { border:1px solid var(--line); border-radius:8px; padding:10px; }
       .bank-box.ok { border-color:#a8d1bb; background:#edf7f1; }
@@ -241,13 +246,6 @@
                   <tr><td>공동명의 신용대출</td><td id="joint-credit-principal-info">-</td><td id="joint-credit-rate-info">-</td><td id="joint-credit-term-info">-</td><td id="joint-credit-monthly-info">-</td></tr>
                 </tbody>
               </table>
-              <h3 class="section-title">공동명의 최종 결과 리포트</h3>
-              <table>
-                <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
-                <tbody>
-                  <tr><td id="joint-final-income">-</td><td id="joint-final-expense">-</td><td id="joint-final-balance">-</td></tr>
-                </tbody>
-              </table>
             </div>
 
             <div class="tab-panel" id="result-tab-solo">
@@ -280,13 +278,6 @@
                   <tr><td>단독명의 와이프 신용대출</td><td id="spouse-credit-principal-info">-</td><td id="spouse-credit-rate-info">-</td><td id="spouse-credit-term-info">-</td><td id="spouse-credit-monthly-info">-</td></tr>
                 </tbody>
               </table>
-              <h3 class="section-title">단독명의 최종 결과 리포트</h3>
-              <table>
-                <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
-                <tbody>
-                  <tr><td id="solo-final-income">-</td><td id="solo-final-expense">-</td><td id="solo-final-balance">-</td></tr>
-                </tbody>
-              </table>
             </div>
 
             <h3 class="section-title">카드 할부 결과</h3>
@@ -301,6 +292,27 @@
               <tbody id="card-results"></tbody>
             </table>
             <div id="warnings"></div>
+
+            <section class="final-report">
+              <div class="final-report-panel active" id="final-report-joint">
+                <h3>공동명의 최종 결과 리포트</h3>
+                <table>
+                  <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
+                  <tbody>
+                    <tr><td id="joint-final-income">-</td><td id="joint-final-expense">-</td><td id="joint-final-balance" class="final-balance">-</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="final-report-panel" id="final-report-solo">
+                <h3>단독명의 최종 결과 리포트</h3>
+                <table>
+                  <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
+                  <tbody>
+                    <tr><td id="solo-final-income">-</td><td id="solo-final-expense">-</td><td id="solo-final-balance" class="final-balance">-</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
         </section>
       </div>
@@ -445,6 +457,7 @@
           activeResultTab = state.activeResultTab;
           document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item.dataset.resultTab === activeResultTab));
           document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
+          document.querySelectorAll("[id^='final-report-']").forEach(panel => panel.classList.toggle("active", panel.id === `final-report-${activeResultTab}`));
         }
         renderCardInputs();
         const status = document.getElementById("save-status");
@@ -618,11 +631,11 @@
         document.getElementById("joint-final-income").textContent = compactWon(netMonthlyIncome);
         document.getElementById("joint-final-expense").textContent = compactWon(jointFinalExpense);
         document.getElementById("joint-final-balance").textContent = compactWon(jointBalance);
-        document.getElementById("joint-final-balance").className = jointBalance >= 0 ? "ok" : "danger";
+        document.getElementById("joint-final-balance").className = `final-balance ${jointBalance >= 0 ? "ok" : "danger"}`;
         document.getElementById("solo-final-income").textContent = compactWon(netMonthlyIncome);
         document.getElementById("solo-final-expense").textContent = compactWon(soloFinalExpense);
         document.getElementById("solo-final-balance").textContent = compactWon(soloBalance);
-        document.getElementById("solo-final-balance").className = soloBalance >= 0 ? "ok" : "danger";
+        document.getElementById("solo-final-balance").className = `final-balance ${soloBalance >= 0 ? "ok" : "danger"}`;
         document.getElementById("joint-final-monthly-total").textContent = compactWon(joint.monthlyPayment + cardMonthly);
         document.getElementById("solo-final-monthly-total").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
 
@@ -670,6 +683,7 @@
           activeResultTab = button.dataset.resultTab;
           document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item === button));
           document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
+          document.querySelectorAll("[id^='final-report-']").forEach(panel => panel.classList.toggle("active", panel.id === `final-report-${activeResultTab}`));
           saveState();
         });
       });
@@ -686,6 +700,7 @@
         document.querySelectorAll("[id^='tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
         document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item.dataset.resultTab === activeResultTab));
         document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
+        document.querySelectorAll("[id^='final-report-']").forEach(panel => panel.classList.toggle("active", panel.id === `final-report-${activeResultTab}`));
         setForm();
         const status = document.getElementById("save-status");
         if (status) status.textContent = "기본값으로 초기화";
