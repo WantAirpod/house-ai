@@ -207,13 +207,13 @@
 
         <section class="panel">
           <h2>계산 결과</h2>
-          <div class="metrics">
-            <div class="metric"><div class="metric-label">공동명의 DSR</div><div class="metric-value" id="joint-dsr">-</div><div class="metric-note" id="joint-dsr-note">부부합산 소득 기준</div></div>
-            <div class="metric"><div class="metric-label">단독명의 DSR</div><div class="metric-value" id="solo-dsr">-</div><div class="metric-note" id="solo-dsr-note">내 소득 기준</div></div>
-            <div class="metric"><div class="metric-label">카드 월 납입 합계</div><div class="metric-value" id="card-monthly-total">-</div><div class="metric-note" id="card-total-note">항목별 할부 합계</div></div>
-          </div>
           <div class="body">
-            <div class="result-grid">
+            <div class="tabs">
+              <button class="tab-button active" type="button" data-result-tab="joint">공동명의 결과</button>
+              <button class="tab-button" type="button" data-result-tab="solo">단독명의 결과</button>
+            </div>
+
+            <div class="tab-panel active" id="result-tab-joint">
               <section class="result-card">
                 <h3>공동명의 결과</h3>
                 <div class="result-summary">
@@ -233,7 +233,24 @@
                   </tbody>
                 </table>
               </section>
+              <h3 class="section-title">공동명의 대출 월납입 산정 내역</h3>
+              <table>
+                <thead><tr><th>구분</th><th>금액</th><th>금리</th><th>기간</th><th>월 납입</th></tr></thead>
+                <tbody>
+                  <tr><td>공동명의 주담대</td><td id="joint-mortgage-principal-info">-</td><td id="joint-mortgage-rate-info">-</td><td id="joint-mortgage-term-info">-</td><td id="joint-mortgage-monthly-info">-</td></tr>
+                  <tr><td>공동명의 신용대출</td><td id="joint-credit-principal-info">-</td><td id="joint-credit-rate-info">-</td><td id="joint-credit-term-info">-</td><td id="joint-credit-monthly-info">-</td></tr>
+                </tbody>
+              </table>
+              <h3 class="section-title">공동명의 최종 결과 리포트</h3>
+              <table>
+                <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
+                <tbody>
+                  <tr><td id="joint-final-income">-</td><td id="joint-final-expense">-</td><td id="joint-final-balance">-</td></tr>
+                </tbody>
+              </table>
+            </div>
 
+            <div class="tab-panel" id="result-tab-solo">
               <section class="result-card">
                 <h3>단독명의(나) 결과</h3>
                 <div class="result-summary">
@@ -254,19 +271,23 @@
                   </tbody>
                 </table>
               </section>
+              <h3 class="section-title">단독명의 대출 월납입 산정 내역</h3>
+              <table>
+                <thead><tr><th>구분</th><th>금액</th><th>금리</th><th>기간</th><th>월 납입</th></tr></thead>
+                <tbody>
+                  <tr><td>단독명의 주담대</td><td id="solo-mortgage-principal-info">-</td><td id="solo-mortgage-rate-info">-</td><td id="solo-mortgage-term-info">-</td><td id="solo-mortgage-monthly-info">-</td></tr>
+                  <tr><td>단독명의 내 신용대출</td><td id="solo-credit-principal-info">-</td><td id="solo-credit-rate-info">-</td><td id="solo-credit-term-info">-</td><td id="solo-credit-monthly-info">-</td></tr>
+                  <tr><td>단독명의 와이프 신용대출</td><td id="spouse-credit-principal-info">-</td><td id="spouse-credit-rate-info">-</td><td id="spouse-credit-term-info">-</td><td id="spouse-credit-monthly-info">-</td></tr>
+                </tbody>
+              </table>
+              <h3 class="section-title">단독명의 최종 결과 리포트</h3>
+              <table>
+                <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
+                <tbody>
+                  <tr><td id="solo-final-income">-</td><td id="solo-final-expense">-</td><td id="solo-final-balance">-</td></tr>
+                </tbody>
+              </table>
             </div>
-
-            <h3 class="section-title">대출 월납입 산정 내역</h3>
-            <table>
-              <thead><tr><th>구분</th><th>금액</th><th>금리</th><th>기간</th><th>월 납입</th></tr></thead>
-              <tbody>
-                <tr><td>공동명의 주담대</td><td id="joint-mortgage-principal-info">-</td><td id="joint-mortgage-rate-info">-</td><td id="joint-mortgage-term-info">-</td><td id="joint-mortgage-monthly-info">-</td></tr>
-                <tr><td>공동명의 신용대출</td><td id="joint-credit-principal-info">-</td><td id="joint-credit-rate-info">-</td><td id="joint-credit-term-info">-</td><td id="joint-credit-monthly-info">-</td></tr>
-                <tr><td>단독명의 주담대</td><td id="solo-mortgage-principal-info">-</td><td id="solo-mortgage-rate-info">-</td><td id="solo-mortgage-term-info">-</td><td id="solo-mortgage-monthly-info">-</td></tr>
-                <tr><td>단독명의 내 신용대출</td><td id="solo-credit-principal-info">-</td><td id="solo-credit-rate-info">-</td><td id="solo-credit-term-info">-</td><td id="solo-credit-monthly-info">-</td></tr>
-                <tr><td>단독명의 와이프 신용대출</td><td id="spouse-credit-principal-info">-</td><td id="spouse-credit-rate-info">-</td><td id="spouse-credit-term-info">-</td><td id="spouse-credit-monthly-info">-</td></tr>
-              </tbody>
-            </table>
 
             <h3 class="section-title">카드 할부 결과</h3>
             <div class="result-summary card-total-summary">
@@ -278,14 +299,6 @@
             <table>
               <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>월 납입</th></tr></thead>
               <tbody id="card-results"></tbody>
-            </table>
-            <h3 class="section-title">최종 결과 리포트</h3>
-            <table>
-              <thead><tr><th>구분</th><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
-              <tbody>
-                <tr><td>공동명의</td><td id="joint-final-income">-</td><td id="joint-final-expense">-</td><td id="joint-final-balance">-</td></tr>
-                <tr><td>단독명의</td><td id="solo-final-income">-</td><td id="solo-final-expense">-</td><td id="solo-final-balance">-</td></tr>
-              </tbody>
             </table>
             <div id="warnings"></div>
           </div>
@@ -320,6 +333,7 @@
       };
       const storageKey = "home-decision-financing-calculator-v2";
       let activeTab = "joint";
+      let activeResultTab = "joint";
       let cards = [];
 
       const amountIds = new Set([
@@ -408,7 +422,7 @@
         inputIds.forEach(id => {
           values[id] = document.getElementById(id)?.value ?? "";
         });
-        return { values, cards, activeTab };
+        return { values, cards, activeTab, activeResultTab };
       }
       function saveState() {
         localStorage.setItem(storageKey, JSON.stringify(readState()));
@@ -424,8 +438,13 @@
         cards = Array.isArray(state.cards) ? state.cards.map(item => ({...item})) : defaults.cards.map(item => ({...item}));
         if (state.activeTab && document.querySelector(`[data-tab="${state.activeTab}"]`)) {
           activeTab = state.activeTab;
-          document.querySelectorAll(".tab-button").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
-          document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
+          document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
+          document.querySelectorAll("[id^='tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
+        }
+        if (state.activeResultTab && document.querySelector(`[data-result-tab="${state.activeResultTab}"]`)) {
+          activeResultTab = state.activeResultTab;
+          document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item.dataset.resultTab === activeResultTab));
+          document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
         }
         renderCardInputs();
         const status = document.getElementById("save-status");
@@ -587,14 +606,6 @@
         const cardMonthly = rows.reduce((sum, row) => sum + row.monthly, 0);
         const cardTotal = rows.reduce((sum, row) => sum + row.amount, 0);
 
-        document.getElementById("joint-dsr").textContent = pct(joint.dsr);
-        document.getElementById("joint-dsr").className = `metric-value ${classByLimit(joint.dsr, joint.dsrLimit)}`;
-        document.getElementById("joint-dsr-note").textContent = `한도 ${joint.dsrLimit}% · ${joint.dsr <= joint.dsrLimit ? "가능권" : "초과"}`;
-        document.getElementById("solo-dsr").textContent = pct(solo.dsr);
-        document.getElementById("solo-dsr").className = `metric-value ${classByLimit(solo.dsr, solo.dsrLimit)}`;
-        document.getElementById("solo-dsr-note").textContent = `한도 ${solo.dsrLimit}% · ${solo.dsr <= solo.dsrLimit ? "가능권" : "초과"}`;
-        document.getElementById("card-monthly-total").textContent = compactWon(cardMonthly);
-        document.getElementById("card-total-note").textContent = `총 결제 ${compactWon(cardTotal)}`;
         document.getElementById("card-grand-total").textContent = compactWon(cardTotal);
         document.getElementById("card-grand-monthly").textContent = compactWon(cardMonthly);
         document.getElementById("joint-with-card-monthly").textContent = compactWon(joint.monthlyPayment + cardMonthly);
@@ -646,11 +657,20 @@
       }
       document.querySelectorAll(".tab-button").forEach(button => {
         button.addEventListener("click", () => {
+          if (!button.dataset.tab) return;
           activeTab = button.dataset.tab;
-          document.querySelectorAll(".tab-button").forEach(item => item.classList.toggle("active", item === button));
-          document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
+          document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item === button));
+          document.querySelectorAll("[id^='tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
           saveState();
           calculate();
+        });
+      });
+      document.querySelectorAll("[data-result-tab]").forEach(button => {
+        button.addEventListener("click", () => {
+          activeResultTab = button.dataset.resultTab;
+          document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item === button));
+          document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
+          saveState();
         });
       });
       document.getElementById("add-card").addEventListener("click", () => {
@@ -661,8 +681,11 @@
       document.getElementById("reset-button").addEventListener("click", () => {
         localStorage.removeItem(storageKey);
         activeTab = "joint";
-        document.querySelectorAll(".tab-button").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
-        document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
+        activeResultTab = "joint";
+        document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
+        document.querySelectorAll("[id^='tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
+        document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item.dataset.resultTab === activeResultTab));
+        document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
         setForm();
         const status = document.getElementById("save-status");
         if (status) status.textContent = "기본값으로 초기화";
