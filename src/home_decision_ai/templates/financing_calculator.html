@@ -55,6 +55,7 @@
       .row-actions { display:flex; gap:8px; margin-top:12px; }
       .header-actions { display:flex; align-items:center; gap:10px; }
       .save-status { color:var(--muted); font-size:12px; white-space:nowrap; }
+      .share-note { color:var(--muted); font-size:11px; white-space:nowrap; }
       .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
       .result-card { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
       .result-card h3 { margin:0; font-size:16px; }
@@ -93,6 +94,7 @@
         </div>
         <div class="header-actions">
           <span class="save-status" id="save-status">자동 저장 대기</span>
+          <button id="share-button" type="button">공유 링크 복사</button>
           <button id="reset-button" type="button">기본값 복원</button>
         </div>
       </div>
@@ -471,6 +473,46 @@
           return false;
         }
       }
+      function encodeShareState(state) {
+        const json = encodeURIComponent(JSON.stringify(state));
+        return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      }
+      function decodeShareState(encoded) {
+        const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+        return JSON.parse(decodeURIComponent(atob(padded)));
+      }
+      function loadSharedState() {
+        const params = new URLSearchParams(window.location.search);
+        const shared = params.get("state");
+        if (!shared) return false;
+        try {
+          const loaded = applyState(decodeShareState(shared));
+          if (loaded) {
+            saveState();
+            const status = document.getElementById("save-status");
+            if (status) status.textContent = "공유 링크값 불러옴";
+          }
+          return loaded;
+        } catch {
+          const status = document.getElementById("save-status");
+          if (status) status.textContent = "공유 링크 오류";
+          return false;
+        }
+      }
+      async function copyShareLink() {
+        saveState();
+        const url = new URL(window.location.href);
+        url.searchParams.set("state", encodeShareState(readState()));
+        const shareUrl = url.toString();
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          const status = document.getElementById("save-status");
+          if (status) status.textContent = "공유 링크 복사됨";
+        } catch {
+          window.prompt("공유 링크를 복사해줘", shareUrl);
+        }
+      }
       function readCommon() {
         return {
           mortgageRate: getNumber("mortgage_rate_percent"),
@@ -692,8 +734,10 @@
         renderCardInputs();
         saveState();
       });
+      document.getElementById("share-button").addEventListener("click", copyShareLink);
       document.getElementById("reset-button").addEventListener("click", () => {
         localStorage.removeItem(storageKey);
+        window.history.replaceState(null, "", window.location.pathname);
         activeTab = "joint";
         activeResultTab = "joint";
         document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
@@ -710,7 +754,7 @@
         saveState();
         queueCalculate();
       }));
-      if (!loadState()) setForm();
+      if (!loadSharedState() && !loadState()) setForm();
       calculate();
     </script>
   </body>
