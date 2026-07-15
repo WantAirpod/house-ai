@@ -84,7 +84,7 @@
       <div class="wrap header-inner">
         <div>
           <h1>기흥역센트럴푸르지오 잔금 계산기</h1>
-          <div class="subtle">공동명의 / 단독명의 DSR 비교 · 주담대/신용대출 직접 입력 · 카드 할부 항목 추가 가능</div>
+          <div class="subtle">공동명의 / 단독명의 DSR 비교 · 신용대출은 DSR 제외 후 월납입만 반영 · 카드 할부 항목 추가 가능</div>
         </div>
         <div class="header-actions">
           <span class="save-status" id="save-status">자동 저장 대기</span>
@@ -121,7 +121,7 @@
                   <div class="input-wrap"><input id="joint_spouse_income_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
                 </div>
                 <div class="field">
-                  <label for="joint_credit_amount_krw">신용대출 금액</label>
+                  <label for="joint_credit_amount_krw">별도 신용대출 금액</label>
                   <div class="input-wrap"><input id="joint_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
                 </div>
                 <div class="field">
@@ -146,7 +146,7 @@
                   <div class="input-wrap"><input id="solo_borrower_income_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
                 </div>
                 <div class="field">
-                  <label for="solo_credit_amount_krw">내 신용대출 금액</label>
+                  <label for="solo_credit_amount_krw">내 별도 신용대출 금액</label>
                   <div class="input-wrap"><input id="solo_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
                 </div>
                 <div class="field">
@@ -228,8 +228,8 @@
                 <table>
                   <tbody>
                     <tr><td>인정 연소득</td><td id="joint-income-result">-</td></tr>
-                    <tr><td>DSR 계산 기준금리</td><td id="joint-dsr-rate-note">-</td></tr>
-                    <tr><td><strong>입력 신용대출 이후 추가 가능</strong></td><td id="joint-extra-credit">-</td></tr>
+                    <tr><td>DSR 계산 기준</td><td id="joint-dsr-rate-note">-</td></tr>
+                    <tr><td><strong>주담대만 반영 시 DSR 여유</strong></td><td id="joint-extra-credit">-</td></tr>
                   </tbody>
                 </table>
               </section>
@@ -265,8 +265,8 @@
                 <table>
                   <tbody>
                     <tr><td>인정 연소득</td><td id="solo-income-result">-</td></tr>
-                    <tr><td>DSR 계산 기준금리</td><td id="solo-dsr-rate-note">-</td></tr>
-                    <tr><td><strong>입력 신용대출 이후 추가 가능</strong></td><td id="solo-extra-credit">-</td></tr>
+                    <tr><td>DSR 계산 기준</td><td id="solo-dsr-rate-note">-</td></tr>
+                    <tr><td><strong>주담대만 반영 시 DSR 여유</strong></td><td id="solo-extra-credit">-</td></tr>
                     <tr><td>와이프 신용대출 월상환</td><td id="solo-spouse-credit-payment">-</td></tr>
                   </tbody>
                 </table>
@@ -470,13 +470,13 @@
       }
       function planDsr({income, mortgage, credit, dsrLimit}, common) {
         const mortgageDsrPayment = annuity(mortgage, common.mortgageDsrRate, common.mortgageMonths);
-        const creditDsrPayment = annuity(credit, common.creditRate, common.creditMonths);
-        const dsr = income > 0 ? (mortgageDsrPayment + creditDsrPayment) * 12 / income * 100 : 0;
-        const monthlyPayment = annuity(mortgage, common.mortgageRate, common.mortgageMonths) + annuity(credit, common.creditRate, common.creditMonths);
+        const creditMonthlyPayment = annuity(credit, common.creditRate, common.creditMonths);
+        const dsr = income > 0 ? mortgageDsrPayment * 12 / income * 100 : 0;
+        const monthlyPayment = annuity(mortgage, common.mortgageRate, common.mortgageMonths) + creditMonthlyPayment;
         const monthlyDsrLimit = income * dsrLimit / 100 / 12;
-        const remainingMonthlyDsr = Math.max(0, monthlyDsrLimit - mortgageDsrPayment - creditDsrPayment);
+        const remainingMonthlyDsr = Math.max(0, monthlyDsrLimit - mortgageDsrPayment);
         const extraCreditCapacity = principalForPayment(remainingMonthlyDsr, common.creditRate, common.creditMonths);
-        return { income, mortgageDsrPayment, creditDsrPayment, dsr, monthlyPayment, dsrLimit, extraCreditCapacity };
+        return { income, mortgageDsrPayment, creditMonthlyPayment, dsr, monthlyPayment, dsrLimit, extraCreditCapacity };
       }
       function renderCardInputs() {
         const tbody = document.getElementById("card-inputs");
@@ -536,7 +536,7 @@
         document.getElementById(`${prefix}-dsr-row`).textContent = pct(result.dsr);
         document.getElementById(`${prefix}-dsr-row`).className = `pill-value ${classByLimit(result.dsr, result.dsrLimit)}`;
         document.getElementById(`${prefix}-monthly-payment`).textContent = compactWon(result.monthlyPayment);
-        document.getElementById(`${prefix}-dsr-rate-note`).textContent = `주담대 ${getNumber("mortgage_dsr_rate_percent")}% · 신용 ${getNumber("credit_rate_percent")}%`;
+        document.getElementById(`${prefix}-dsr-rate-note`).textContent = `주담대 ${getNumber("mortgage_dsr_rate_percent")}%만 반영 · 신용대출은 월납입만 반영`;
         document.getElementById(`${prefix}-extra-credit`).textContent = compactWon(result.extraCreditCapacity);
         document.getElementById(`${prefix}-extra-credit`).className = result.extraCreditCapacity > 0 ? "ok" : "danger";
       }
@@ -648,7 +648,7 @@
         const warnings = document.getElementById("warnings");
         warnings.innerHTML = "";
         if (joint.dsr > joint.dsrLimit) warnings.innerHTML += `<div class="warning danger">공동명의 DSR이 ${pct(joint.dsr)}로 한도 ${joint.dsrLimit}%를 초과합니다.</div>`;
-        if (solo.dsr > solo.dsrLimit) warnings.innerHTML += `<div class="warning danger">단독명의 DSR이 ${pct(solo.dsr)}로 한도 ${solo.dsrLimit}%를 초과합니다. 단, 와이프 신용대출은 내 DSR에는 넣지 않고 월 현금흐름에만 반영했습니다.</div>`;
+        if (solo.dsr > solo.dsrLimit) warnings.innerHTML += `<div class="warning danger">단독명의 DSR이 ${pct(solo.dsr)}로 한도 ${solo.dsrLimit}%를 초과합니다. 별도 신용대출은 DSR에는 넣지 않고 월 현금흐름에만 반영했습니다.</div>`;
       }
       let timer = null;
       function queueCalculate() {
