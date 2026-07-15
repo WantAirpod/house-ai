@@ -215,9 +215,8 @@
                 <table>
                   <tbody>
                     <tr><td>인정 연소득</td><td id="joint-income-result">-</td></tr>
-                    <tr><td>주담대 DSR 원리금</td><td id="joint-mortgage-dsr-payment">-</td></tr>
-                    <tr><td>신용대출 DSR 원리금</td><td id="joint-credit-dsr-payment">-</td></tr>
-                    <tr><td><strong>추가 신용대출 가능 추정</strong></td><td id="joint-extra-credit">-</td></tr>
+                    <tr><td>DSR 계산 기준금리</td><td id="joint-dsr-rate-note">-</td></tr>
+                    <tr><td><strong>입력 신용대출 이후 추가 가능</strong></td><td id="joint-extra-credit">-</td></tr>
                   </tbody>
                 </table>
               </section>
@@ -236,9 +235,8 @@
                 <table>
                   <tbody>
                     <tr><td>인정 연소득</td><td id="solo-income-result">-</td></tr>
-                    <tr><td>주담대 DSR 원리금</td><td id="solo-mortgage-dsr-payment">-</td></tr>
-                    <tr><td>내 신용대출 DSR 원리금</td><td id="solo-credit-dsr-payment">-</td></tr>
-                    <tr><td><strong>내 추가 신용대출 가능 추정</strong></td><td id="solo-extra-credit">-</td></tr>
+                    <tr><td>DSR 계산 기준금리</td><td id="solo-dsr-rate-note">-</td></tr>
+                    <tr><td><strong>입력 신용대출 이후 추가 가능</strong></td><td id="solo-extra-credit">-</td></tr>
                     <tr><td>와이프 신용대출 월상환</td><td id="solo-spouse-credit-payment">-</td></tr>
                   </tbody>
                 </table>
@@ -474,11 +472,10 @@
       }
       function renderPlan(prefix, result) {
         document.getElementById(`${prefix}-income-result`).textContent = compactWon(result.income);
-        document.getElementById(`${prefix}-mortgage-dsr-payment`).textContent = compactWon(result.mortgageDsrPayment);
-        document.getElementById(`${prefix}-credit-dsr-payment`).textContent = compactWon(result.creditDsrPayment);
         document.getElementById(`${prefix}-dsr-row`).textContent = pct(result.dsr);
         document.getElementById(`${prefix}-dsr-row`).className = `pill-value ${classByLimit(result.dsr, result.dsrLimit)}`;
         document.getElementById(`${prefix}-monthly-payment`).textContent = compactWon(result.monthlyPayment);
+        document.getElementById(`${prefix}-dsr-rate-note`).textContent = `주담대 ${getNumber("mortgage_dsr_rate_percent")}% · 신용 ${getNumber("credit_rate_percent")}%`;
         document.getElementById(`${prefix}-extra-credit`).textContent = compactWon(result.extraCreditCapacity);
         document.getElementById(`${prefix}-extra-credit`).className = result.extraCreditCapacity > 0 ? "ok" : "danger";
       }
