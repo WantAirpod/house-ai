@@ -256,6 +256,18 @@
               </section>
             </div>
 
+            <h3 class="section-title">대출 월납입 산정 내역</h3>
+            <table>
+              <thead><tr><th>구분</th><th>금액</th><th>금리</th><th>기간</th><th>월 납입</th></tr></thead>
+              <tbody>
+                <tr><td>공동명의 주담대</td><td id="joint-mortgage-principal-info">-</td><td id="joint-mortgage-rate-info">-</td><td id="joint-mortgage-term-info">-</td><td id="joint-mortgage-monthly-info">-</td></tr>
+                <tr><td>공동명의 신용대출</td><td id="joint-credit-principal-info">-</td><td id="joint-credit-rate-info">-</td><td id="joint-credit-term-info">-</td><td id="joint-credit-monthly-info">-</td></tr>
+                <tr><td>단독명의 주담대</td><td id="solo-mortgage-principal-info">-</td><td id="solo-mortgage-rate-info">-</td><td id="solo-mortgage-term-info">-</td><td id="solo-mortgage-monthly-info">-</td></tr>
+                <tr><td>단독명의 내 신용대출</td><td id="solo-credit-principal-info">-</td><td id="solo-credit-rate-info">-</td><td id="solo-credit-term-info">-</td><td id="solo-credit-monthly-info">-</td></tr>
+                <tr><td>단독명의 와이프 신용대출</td><td id="spouse-credit-principal-info">-</td><td id="spouse-credit-rate-info">-</td><td id="spouse-credit-term-info">-</td><td id="spouse-credit-monthly-info">-</td></tr>
+              </tbody>
+            </table>
+
             <h3 class="section-title">카드 할부 결과</h3>
             <div class="result-summary card-total-summary">
               <div class="pill"><div class="pill-label">카드 결제 총액</div><div class="pill-value" id="card-grand-total">-</div></div>
@@ -509,6 +521,53 @@
         document.getElementById(`${prefix}-extra-credit`).textContent = compactWon(result.extraCreditCapacity);
         document.getElementById(`${prefix}-extra-credit`).className = result.extraCreditCapacity > 0 ? "ok" : "danger";
       }
+      function renderLoanPaymentInfo(common, spouseCreditMonthly) {
+        const mortgageTermYears = getNumber("mortgage_term_years");
+        const creditTermYears = getNumber("credit_term_years");
+        const rows = [
+          {
+            prefix: "joint-mortgage",
+            principal: getAmount("joint_mortgage_amount_krw"),
+            rate: common.mortgageRate,
+            term: mortgageTermYears,
+            monthly: annuity(getAmount("joint_mortgage_amount_krw"), common.mortgageRate, common.mortgageMonths),
+          },
+          {
+            prefix: "joint-credit",
+            principal: getAmount("joint_credit_amount_krw"),
+            rate: common.creditRate,
+            term: creditTermYears,
+            monthly: annuity(getAmount("joint_credit_amount_krw"), common.creditRate, common.creditMonths),
+          },
+          {
+            prefix: "solo-mortgage",
+            principal: getAmount("solo_mortgage_amount_krw"),
+            rate: common.mortgageRate,
+            term: mortgageTermYears,
+            monthly: annuity(getAmount("solo_mortgage_amount_krw"), common.mortgageRate, common.mortgageMonths),
+          },
+          {
+            prefix: "solo-credit",
+            principal: getAmount("solo_credit_amount_krw"),
+            rate: common.creditRate,
+            term: creditTermYears,
+            monthly: annuity(getAmount("solo_credit_amount_krw"), common.creditRate, common.creditMonths),
+          },
+          {
+            prefix: "spouse-credit",
+            principal: getAmount("solo_spouse_credit_amount_krw"),
+            rate: common.spouseCreditRate,
+            term: creditTermYears,
+            monthly: spouseCreditMonthly,
+          },
+        ];
+        rows.forEach(row => {
+          document.getElementById(`${row.prefix}-principal-info`).textContent = compactWon(row.principal);
+          document.getElementById(`${row.prefix}-rate-info`).textContent = `${row.rate}%`;
+          document.getElementById(`${row.prefix}-term-info`).textContent = `${row.term}년`;
+          document.getElementById(`${row.prefix}-monthly-info`).textContent = compactWon(row.monthly);
+        });
+      }
       function calculate() {
         const common = readCommon();
         const joint = planDsr({
@@ -558,6 +617,7 @@
 
         renderPlan("joint", joint);
         renderPlan("solo", solo);
+        renderLoanPaymentInfo(common, spouseCreditMonthly);
         renderBank("joint", joint.dsr);
         renderBank("solo", solo.dsr);
         document.getElementById("solo-spouse-credit-payment").textContent = compactWon(spouseCreditMonthly);
