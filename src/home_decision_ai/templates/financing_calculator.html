@@ -23,11 +23,6 @@
       .panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
       .panel h2 { margin:0; padding:14px 16px; border-bottom:1px solid var(--line); font-size:15px; }
       .body { padding:16px; }
-      .tabs { display:flex; gap:8px; margin-bottom:14px; }
-      .tab-button { flex:1; min-height:38px; border:1px solid var(--line); border-radius:6px; background:var(--surface); cursor:pointer; font:inherit; }
-      .tab-button.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:750; }
-      .tab-panel { display:none; }
-      .tab-panel.active { display:block; }
       .fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
       .field.full { grid-column:1/-1; }
       .fieldset-title { grid-column:1/-1; margin-top:4px; color:var(--accent); font-size:13px; font-weight:750; }
@@ -56,18 +51,15 @@
       .header-actions { display:flex; align-items:center; gap:10px; }
       .save-status { color:var(--muted); font-size:12px; white-space:nowrap; }
       .share-note { color:var(--muted); font-size:11px; white-space:nowrap; }
-      .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
       .result-card { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
       .result-card h3 { margin:0; font-size:16px; }
       .result-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
-      .result-summary.card-total-summary { grid-template-columns:repeat(4,1fr); }
+      .result-summary.card-total-summary { grid-template-columns:repeat(3,1fr); }
       .pill { border-radius:8px; padding:10px; background:#f7f8f6; }
       .pill-label { color:var(--muted); font-size:12px; }
       .pill-value { margin-top:4px; font-size:19px; font-weight:800; }
       .final-report { margin-top:20px; border:2px solid var(--accent); border-radius:10px; padding:14px; background:#fbfffc; box-shadow:0 6px 16px rgba(23,107,72,0.08); }
       .final-report h3 { margin:0 0 8px; font-size:17px; color:var(--accent); }
-      .final-report-panel { display:none; }
-      .final-report-panel.active { display:block; }
       .final-balance { font-size:24px; font-weight:900; }
       .bank-judgement { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
       .bank-box { border:1px solid var(--line); border-radius:8px; padding:10px; }
@@ -81,7 +73,12 @@
       .card-input-fields .card-name { grid-column:1 / -1; }
       button { min-height:36px; border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:0 12px; cursor:pointer; }
       .remove-card { color:var(--danger); }
-      @media (max-width:1080px) { .grid,.result-grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
+      .ledger-note { margin:18px 0 -8px; color:var(--muted); font-size:12px; line-height:1.5; }
+      .ledger-table th:first-child, .ledger-table td:first-child { border-right:1px solid var(--line); }
+      .ledger-table th:nth-child(3), .ledger-table td:nth-child(3) { padding-left:16px; }
+      .ledger-table .ledger-total td { background:#f0f2ee; font-weight:750; }
+      .ledger-table .ledger-remaining td { background:var(--accent-soft); font-weight:750; }
+      @media (max-width:1080px) { .grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
       @media (max-width:720px) { .fields,.metrics,.card-input-fields,.result-summary,.bank-judgement { grid-template-columns:1fr; } .card-input-fields .card-name { grid-column:auto; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
     </style>
   </head>
@@ -90,7 +87,7 @@
       <div class="wrap header-inner">
         <div>
           <h1>기흥역센트럴푸르지오 잔금 계산기</h1>
-          <div class="subtle">공동명의 / 단독명의 DSR 비교 · 신용대출은 DSR 제외 후 월납입만 반영 · 카드 할부 항목 추가 가능</div>
+          <div class="subtle">공동명의 기준 · 잔금 부족분은 신용대출로 자동 반영 · 카드 할부 항목 추가 가능</div>
         </div>
         <div class="header-actions">
           <span class="save-status" id="save-status">자동 저장 대기</span>
@@ -104,13 +101,7 @@
         <section class="panel">
           <h2>입력</h2>
           <div class="body">
-            <div class="tabs">
-              <button class="tab-button active" type="button" data-tab="joint">공동명의</button>
-              <button class="tab-button" type="button" data-tab="solo">단독명의(나)</button>
-            </div>
-
-            <div class="tab-panel active" id="tab-joint">
-              <div class="fields">
+            <div class="fields">
                 <div class="field">
                   <label for="joint_purchase_price_krw">매매가</label>
                   <div class="input-wrap"><input id="joint_purchase_price_krw" type="number" readonly><span class="unit">만원</span></div>
@@ -128,43 +119,13 @@
                   <div class="input-wrap"><input id="joint_spouse_income_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
                 </div>
                 <div class="field">
-                  <label for="joint_credit_amount_krw">별도 신용대출 금액</label>
-                  <div class="input-wrap"><input id="joint_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+                  <label for="cash_available_krw">보유 현금</label>
+                  <div class="input-wrap"><input id="cash_available_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
                 </div>
                 <div class="field">
                   <label for="joint_dsr_limit_percent">DSR 한도</label>
                   <div class="input-wrap"><input id="joint_dsr_limit_percent" type="number" min="0" step="1"><span class="unit">%</span></div>
                 </div>
-              </div>
-            </div>
-
-            <div class="tab-panel" id="tab-solo">
-              <div class="fields">
-                <div class="field">
-                  <label for="solo_purchase_price_krw">매매가</label>
-                  <div class="input-wrap"><input id="solo_purchase_price_krw" type="number" readonly><span class="unit">만원</span></div>
-                </div>
-                <div class="field">
-                  <label for="solo_mortgage_amount_krw">주담대 금액</label>
-                  <div class="input-wrap"><input id="solo_mortgage_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
-                </div>
-                <div class="field">
-                  <label for="solo_borrower_income_krw">내 연소득</label>
-                  <div class="input-wrap"><input id="solo_borrower_income_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
-                </div>
-                <div class="field">
-                  <label for="solo_credit_amount_krw">내 별도 신용대출 금액</label>
-                  <div class="input-wrap"><input id="solo_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
-                </div>
-                <div class="field">
-                  <label for="solo_spouse_credit_amount_krw">와이프 신용대출 금액</label>
-                  <div class="input-wrap"><input id="solo_spouse_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
-                </div>
-                <div class="field">
-                  <label for="solo_dsr_limit_percent">DSR 한도</label>
-                  <div class="input-wrap"><input id="solo_dsr_limit_percent" type="number" min="0" step="1"><span class="unit">%</span></div>
-                </div>
-              </div>
             </div>
 
             <div class="fields" style="margin-top:14px;">
@@ -215,12 +176,7 @@
         <section class="panel">
           <h2>계산 결과</h2>
           <div class="body">
-            <div class="tabs">
-              <button class="tab-button active" type="button" data-result-tab="joint">공동명의 결과</button>
-              <button class="tab-button" type="button" data-result-tab="solo">단독명의 결과</button>
-            </div>
-
-            <div class="tab-panel active" id="result-tab-joint">
+            <div>
               <section class="result-card">
                 <h3>공동명의 결과</h3>
                 <div class="result-summary">
@@ -250,44 +206,11 @@
               </table>
             </div>
 
-            <div class="tab-panel" id="result-tab-solo">
-              <section class="result-card">
-                <h3>단독명의(나) 결과</h3>
-                <div class="result-summary">
-                  <div class="pill"><div class="pill-label">내 DSR</div><div class="pill-value" id="solo-dsr-row">-</div></div>
-                  <div class="pill"><div class="pill-label">내 대출 월 납입</div><div class="pill-value" id="solo-monthly-payment">-</div></div>
-                  <div class="pill"><div class="pill-label">카드 포함 월 납입</div><div class="pill-value" id="solo-with-card-monthly">-</div></div>
-                </div>
-                <div class="bank-judgement">
-                  <div class="bank-box" id="solo-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="solo-bank1">-</div></div>
-                  <div class="bank-box" id="solo-bank2-box"><div class="bank-title">2금융권 50%</div><div class="bank-result" id="solo-bank2">-</div></div>
-                </div>
-                <table>
-                  <tbody>
-                    <tr><td>인정 연소득</td><td id="solo-income-result">-</td></tr>
-                    <tr><td>DSR 계산 기준</td><td id="solo-dsr-rate-note">-</td></tr>
-                    <tr><td><strong>주담대만 반영 시 DSR 여유</strong></td><td id="solo-extra-credit">-</td></tr>
-                    <tr><td>와이프 신용대출 월상환</td><td id="solo-spouse-credit-payment">-</td></tr>
-                  </tbody>
-                </table>
-              </section>
-              <h3 class="section-title">단독명의 대출 월납입 산정 내역</h3>
-              <table>
-                <thead><tr><th>구분</th><th>금액</th><th>금리</th><th>기간</th><th>월 납입</th></tr></thead>
-                <tbody>
-                  <tr><td>단독명의 주담대</td><td id="solo-mortgage-principal-info">-</td><td id="solo-mortgage-rate-info">-</td><td id="solo-mortgage-term-info">-</td><td id="solo-mortgage-monthly-info">-</td></tr>
-                  <tr><td>단독명의 내 신용대출</td><td id="solo-credit-principal-info">-</td><td id="solo-credit-rate-info">-</td><td id="solo-credit-term-info">-</td><td id="solo-credit-monthly-info">-</td></tr>
-                  <tr><td>단독명의 와이프 신용대출</td><td id="spouse-credit-principal-info">-</td><td id="spouse-credit-rate-info">-</td><td id="spouse-credit-term-info">-</td><td id="spouse-credit-monthly-info">-</td></tr>
-                </tbody>
-              </table>
-            </div>
-
             <h3 class="section-title">카드 할부 결과</h3>
             <div class="result-summary card-total-summary">
               <div class="pill"><div class="pill-label">카드 결제 총액</div><div class="pill-value" id="card-grand-total">-</div></div>
               <div class="pill"><div class="pill-label">매월 카드 할부 납입</div><div class="pill-value" id="card-grand-monthly">-</div></div>
               <div class="pill"><div class="pill-label">공동명의 최종 월 납입</div><div class="pill-value" id="joint-final-monthly-total">-</div></div>
-              <div class="pill"><div class="pill-label">단독명의 최종 월 납입</div><div class="pill-value" id="solo-final-monthly-total">-</div></div>
             </div>
             <table>
               <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>월 납입</th></tr></thead>
@@ -296,8 +219,8 @@
             <div id="warnings"></div>
 
             <section class="final-report">
-              <div class="final-report-panel active" id="final-report-joint">
-                <h3>공동명의 최종 결과 리포트</h3>
+              <div>
+                <h3>최종 월 현금흐름</h3>
                 <table>
                   <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
                   <tbody>
@@ -305,15 +228,18 @@
                   </tbody>
                 </table>
               </div>
-              <div class="final-report-panel" id="final-report-solo">
-                <h3>단독명의 최종 결과 리포트</h3>
-                <table>
-                  <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
-                  <tbody>
-                    <tr><td id="solo-final-income">-</td><td id="solo-final-expense">-</td><td id="solo-final-balance" class="final-balance">-</td></tr>
-                  </tbody>
-                </table>
-              </div>
+              <p class="ledger-note">왼쪽 플러스 조달 자금과 오른쪽 마이너스 사용처의 차이가 매수 후 남은 돈입니다. 카드 항목은 결제수단이므로 조달과 사용처에 같은 금액으로 반영합니다.</p>
+              <table class="ledger-table">
+                <thead><tr><th colspan="2">차변 (+) · 조달 자금</th><th colspan="2">대변 (-) · 사용처</th></tr></thead>
+                <tbody>
+                  <tr><td>보유 현금</td><td id="ledger-cash">-</td><td>매매가</td><td id="ledger-purchase">-</td></tr>
+                  <tr><td>주담대</td><td id="ledger-mortgage">-</td><td>카드 결제 합계</td><td id="ledger-card-use">-</td></tr>
+                  <tr><td>잔금 부족분 신용대출</td><td id="ledger-credit">-</td><td></td><td></td></tr>
+                  <tr><td>카드 결제 합계</td><td id="ledger-card-funding">-</td><td></td><td></td></tr>
+                  <tr class="ledger-total"><td>플러스 합계</td><td id="ledger-funding-total">-</td><td>마이너스 합계</td><td id="ledger-use-total">-</td></tr>
+                  <tr class="ledger-remaining"><td>남은 돈 (플러스 − 마이너스)</td><td id="ledger-remaining">-</td><td>자금 상태</td><td id="ledger-status">-</td></tr>
+                </tbody>
+              </table>
             </section>
           </div>
         </section>
@@ -324,18 +250,14 @@
       const defaults = {
         purchase: 1017000000,
         jointMortgage: 600000000,
-        soloMortgage: 600000000,
+        cashAvailable: 360000000,
         borrowerIncome: 97400000,
         spouseIncome: 46000000,
-        jointCredit: 57000000,
-        soloCredit: 0,
-        soloSpouseCredit: 57000000,
         dsrLimit: 50,
         mortgageRate: 4.7,
         mortgageDsrRate: 7.01,
         mortgageTerm: 30,
         creditRate: 6.5,
-        spouseCreditRate: 11,
         borrowerNetMonthlyIncome: 5500000,
         spouseNetMonthlyIncome: 3300000,
         creditTerm: 5,
@@ -346,20 +268,16 @@
         ],
       };
       const storageKey = "home-decision-financing-calculator-v2";
-      let activeTab = "joint";
-      let activeResultTab = "joint";
       let cards = [];
 
       const amountIds = new Set([
-        "joint_purchase_price_krw","solo_purchase_price_krw","joint_mortgage_amount_krw",
-        "solo_mortgage_amount_krw","joint_borrower_income_krw","joint_spouse_income_krw",
-        "solo_borrower_income_krw","joint_credit_amount_krw","solo_credit_amount_krw",
-        "solo_spouse_credit_amount_krw"
+        "joint_purchase_price_krw","joint_mortgage_amount_krw","joint_borrower_income_krw",
+        "joint_spouse_income_krw","cash_available_krw"
       ]);
       const inputIds = [
-        ...amountIds, "joint_dsr_limit_percent","solo_dsr_limit_percent",
+        ...amountIds, "joint_dsr_limit_percent",
         "mortgage_rate_percent","mortgage_dsr_rate_percent","mortgage_term_years",
-        "credit_rate_percent","spouse_credit_rate_percent","borrower_net_monthly_income_krw",
+        "credit_rate_percent","borrower_net_monthly_income_krw",
         "spouse_net_monthly_income_krw","credit_term_years",
       ];
 
@@ -409,22 +327,15 @@
       }
       function setForm() {
         setAmount("joint_purchase_price_krw", defaults.purchase);
-        setAmount("solo_purchase_price_krw", defaults.purchase);
         setAmount("joint_mortgage_amount_krw", defaults.jointMortgage);
-        setAmount("solo_mortgage_amount_krw", defaults.soloMortgage);
         setAmount("joint_borrower_income_krw", defaults.borrowerIncome);
         setAmount("joint_spouse_income_krw", defaults.spouseIncome);
-        setAmount("solo_borrower_income_krw", defaults.borrowerIncome);
-        setAmount("joint_credit_amount_krw", defaults.jointCredit);
-        setAmount("solo_credit_amount_krw", defaults.soloCredit);
-        setAmount("solo_spouse_credit_amount_krw", defaults.soloSpouseCredit);
+        setAmount("cash_available_krw", defaults.cashAvailable);
         document.getElementById("joint_dsr_limit_percent").value = defaults.dsrLimit;
-        document.getElementById("solo_dsr_limit_percent").value = defaults.dsrLimit;
         document.getElementById("mortgage_rate_percent").value = defaults.mortgageRate;
         document.getElementById("mortgage_dsr_rate_percent").value = defaults.mortgageDsrRate;
         document.getElementById("mortgage_term_years").value = defaults.mortgageTerm;
         document.getElementById("credit_rate_percent").value = defaults.creditRate;
-        document.getElementById("spouse_credit_rate_percent").value = defaults.spouseCreditRate;
         setAmount("borrower_net_monthly_income_krw", defaults.borrowerNetMonthlyIncome);
         setAmount("spouse_net_monthly_income_krw", defaults.spouseNetMonthlyIncome);
         document.getElementById("credit_term_years").value = defaults.creditTerm;
@@ -436,7 +347,7 @@
         inputIds.forEach(id => {
           values[id] = document.getElementById(id)?.value ?? "";
         });
-        return { values, cards, activeTab, activeResultTab };
+        return { values, cards };
       }
       function saveState() {
         localStorage.setItem(storageKey, JSON.stringify(readState()));
@@ -450,17 +361,6 @@
           if (el) el.value = value;
         });
         cards = Array.isArray(state.cards) ? state.cards.map(item => ({...item})) : defaults.cards.map(item => ({...item}));
-        if (state.activeTab && document.querySelector(`[data-tab="${state.activeTab}"]`)) {
-          activeTab = state.activeTab;
-          document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
-          document.querySelectorAll("[id^='tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
-        }
-        if (state.activeResultTab && document.querySelector(`[data-result-tab="${state.activeResultTab}"]`)) {
-          activeResultTab = state.activeResultTab;
-          document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item.dataset.resultTab === activeResultTab));
-          document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
-          document.querySelectorAll("[id^='final-report-']").forEach(panel => panel.classList.toggle("active", panel.id === `final-report-${activeResultTab}`));
-        }
         renderCardInputs();
         const status = document.getElementById("save-status");
         if (status) status.textContent = "저장값 불러옴";
@@ -553,7 +453,6 @@
           mortgageDsrRate: getNumber("mortgage_dsr_rate_percent"),
           mortgageMonths: getNumber("mortgage_term_years") * 12,
           creditRate: getNumber("credit_rate_percent"),
-          spouseCreditRate: getNumber("spouse_credit_rate_percent"),
           creditMonths: getNumber("credit_term_years") * 12,
         };
       }
@@ -629,7 +528,7 @@
         document.getElementById(`${prefix}-extra-credit`).textContent = compactWon(result.extraCreditCapacity);
         document.getElementById(`${prefix}-extra-credit`).className = result.extraCreditCapacity > 0 ? "ok" : "danger";
       }
-      function renderLoanPaymentInfo(common, spouseCreditMonthly) {
+      function renderLoanPaymentInfo(common, creditAmount) {
         const mortgageTermYears = getNumber("mortgage_term_years");
         const creditTermYears = getNumber("credit_term_years");
         const rows = [
@@ -642,31 +541,10 @@
           },
           {
             prefix: "joint-credit",
-            principal: getAmount("joint_credit_amount_krw"),
+            principal: creditAmount,
             rate: common.creditRate,
             term: creditTermYears,
-            monthly: annuity(getAmount("joint_credit_amount_krw"), common.creditRate, common.creditMonths),
-          },
-          {
-            prefix: "solo-mortgage",
-            principal: getAmount("solo_mortgage_amount_krw"),
-            rate: common.mortgageRate,
-            term: mortgageTermYears,
-            monthly: annuity(getAmount("solo_mortgage_amount_krw"), common.mortgageRate, common.mortgageMonths),
-          },
-          {
-            prefix: "solo-credit",
-            principal: getAmount("solo_credit_amount_krw"),
-            rate: common.creditRate,
-            term: creditTermYears,
-            monthly: annuity(getAmount("solo_credit_amount_krw"), common.creditRate, common.creditMonths),
-          },
-          {
-            prefix: "spouse-credit",
-            principal: getAmount("solo_spouse_credit_amount_krw"),
-            rate: common.spouseCreditRate,
-            term: creditTermYears,
-            monthly: spouseCreditMonthly,
+            monthly: annuity(creditAmount, common.creditRate, common.creditMonths),
           },
         ];
         rows.forEach(row => {
@@ -678,49 +556,51 @@
       }
       function calculate() {
         const common = readCommon();
-        const joint = planDsr({
-          income: getAmount("joint_borrower_income_krw") + getAmount("joint_spouse_income_krw"),
-          mortgage: getAmount("joint_mortgage_amount_krw"),
-          credit: getAmount("joint_credit_amount_krw"),
-          dsrLimit: getNumber("joint_dsr_limit_percent"),
-        }, common);
-        const solo = planDsr({
-          income: getAmount("solo_borrower_income_krw"),
-          mortgage: getAmount("solo_mortgage_amount_krw"),
-          credit: getAmount("solo_credit_amount_krw"),
-          dsrLimit: getNumber("solo_dsr_limit_percent"),
-        }, common);
-        const spouseCreditMonthly = annuity(getAmount("solo_spouse_credit_amount_krw"), common.spouseCreditRate, common.creditMonths);
         const rows = cardRows();
         const cardMonthly = rows.reduce((sum, row) => sum + row.monthly, 0);
         const cardTotal = rows.reduce((sum, row) => sum + row.amount, 0);
+        const purchase = getAmount("joint_purchase_price_krw");
+        const cashAvailable = getAmount("cash_available_krw");
+        const mortgage = getAmount("joint_mortgage_amount_krw");
+        const creditRequired = Math.max(0, purchase - cashAvailable - mortgage);
+        const joint = planDsr({
+          income: getAmount("joint_borrower_income_krw") + getAmount("joint_spouse_income_krw"),
+          mortgage,
+          credit: creditRequired,
+          dsrLimit: getNumber("joint_dsr_limit_percent"),
+        }, common);
 
         document.getElementById("card-grand-total").textContent = compactWon(cardTotal);
         document.getElementById("card-grand-monthly").textContent = compactWon(cardMonthly);
         document.getElementById("joint-with-card-monthly").textContent = compactWon(joint.monthlyPayment + cardMonthly);
-        document.getElementById("solo-with-card-monthly").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
         const netMonthlyIncome = getAmount("borrower_net_monthly_income_krw") + getAmount("spouse_net_monthly_income_krw");
         const jointFinalExpense = joint.monthlyPayment + cardMonthly;
-        const soloFinalExpense = solo.monthlyPayment + spouseCreditMonthly + cardMonthly;
         const jointBalance = netMonthlyIncome - jointFinalExpense;
-        const soloBalance = netMonthlyIncome - soloFinalExpense;
         document.getElementById("joint-final-income").textContent = compactWon(netMonthlyIncome);
         document.getElementById("joint-final-expense").textContent = compactWon(jointFinalExpense);
         document.getElementById("joint-final-balance").textContent = compactWon(jointBalance);
         document.getElementById("joint-final-balance").className = `final-balance ${jointBalance >= 0 ? "ok" : "danger"}`;
-        document.getElementById("solo-final-income").textContent = compactWon(netMonthlyIncome);
-        document.getElementById("solo-final-expense").textContent = compactWon(soloFinalExpense);
-        document.getElementById("solo-final-balance").textContent = compactWon(soloBalance);
-        document.getElementById("solo-final-balance").className = `final-balance ${soloBalance >= 0 ? "ok" : "danger"}`;
         document.getElementById("joint-final-monthly-total").textContent = compactWon(joint.monthlyPayment + cardMonthly);
-        document.getElementById("solo-final-monthly-total").textContent = compactWon(solo.monthlyPayment + spouseCreditMonthly + cardMonthly);
 
         renderPlan("joint", joint);
-        renderPlan("solo", solo);
-        renderLoanPaymentInfo(common, spouseCreditMonthly);
+        renderLoanPaymentInfo(common, creditRequired);
         renderBank("joint", joint.dsr);
-        renderBank("solo", solo.dsr);
-        document.getElementById("solo-spouse-credit-payment").textContent = compactWon(spouseCreditMonthly);
+        const fundingTotal = cashAvailable + mortgage + creditRequired + cardTotal;
+        const useTotal = purchase + cardTotal;
+        const remaining = fundingTotal - useTotal;
+        const ledgerValues = {
+          "ledger-cash": cashAvailable,
+          "ledger-mortgage": mortgage,
+          "ledger-credit": creditRequired,
+          "ledger-card-funding": cardTotal,
+          "ledger-purchase": purchase,
+          "ledger-card-use": cardTotal,
+          "ledger-funding-total": fundingTotal,
+          "ledger-use-total": useTotal,
+          "ledger-remaining": remaining,
+        };
+        Object.entries(ledgerValues).forEach(([id, value]) => document.getElementById(id).textContent = compactWon(value));
+        document.getElementById("ledger-status").textContent = remaining >= 0 ? "잔금 가능" : "자금 부족";
 
         const cardResultBody = document.getElementById("card-results");
         cardResultBody.innerHTML = "";
@@ -737,32 +617,12 @@
         const warnings = document.getElementById("warnings");
         warnings.innerHTML = "";
         if (joint.dsr > joint.dsrLimit) warnings.innerHTML += `<div class="warning danger">공동명의 DSR이 ${pct(joint.dsr)}로 한도 ${joint.dsrLimit}%를 초과합니다.</div>`;
-        if (solo.dsr > solo.dsrLimit) warnings.innerHTML += `<div class="warning danger">단독명의 DSR이 ${pct(solo.dsr)}로 한도 ${solo.dsrLimit}%를 초과합니다. 별도 신용대출은 DSR에는 넣지 않고 월 현금흐름에만 반영했습니다.</div>`;
       }
       let timer = null;
       function queueCalculate() {
         clearTimeout(timer);
         timer = setTimeout(calculate, 120);
       }
-      document.querySelectorAll(".tab-button").forEach(button => {
-        button.addEventListener("click", () => {
-          if (!button.dataset.tab) return;
-          activeTab = button.dataset.tab;
-          document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item === button));
-          document.querySelectorAll("[id^='tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
-          saveState();
-          calculate();
-        });
-      });
-      document.querySelectorAll("[data-result-tab]").forEach(button => {
-        button.addEventListener("click", () => {
-          activeResultTab = button.dataset.resultTab;
-          document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item === button));
-          document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
-          document.querySelectorAll("[id^='final-report-']").forEach(panel => panel.classList.toggle("active", panel.id === `final-report-${activeResultTab}`));
-          saveState();
-        });
-      });
       document.getElementById("add-card").addEventListener("click", () => {
         cards.push({ label:"새 카드결제", amount:0, months:12, rate:0 });
         renderCardInputs();
@@ -772,13 +632,6 @@
       document.getElementById("reset-button").addEventListener("click", () => {
         localStorage.removeItem(storageKey);
         window.history.replaceState(null, "", window.location.pathname);
-        activeTab = "joint";
-        activeResultTab = "joint";
-        document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item.dataset.tab === activeTab));
-        document.querySelectorAll("[id^='tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${activeTab}`));
-        document.querySelectorAll("[data-result-tab]").forEach(item => item.classList.toggle("active", item.dataset.resultTab === activeResultTab));
-        document.querySelectorAll("[id^='result-tab-']").forEach(panel => panel.classList.toggle("active", panel.id === `result-tab-${activeResultTab}`));
-        document.querySelectorAll("[id^='final-report-']").forEach(panel => panel.classList.toggle("active", panel.id === `final-report-${activeResultTab}`));
         setForm();
         const status = document.getElementById("save-status");
         if (status) status.textContent = "기본값으로 초기화";
