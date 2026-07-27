@@ -105,7 +105,7 @@
       <div class="wrap header-inner">
         <div>
           <h1>기흥역센트럴푸르지오 잔금 계산기</h1>
-          <div class="subtle">공동명의 기준 · 잔금 부족분은 신용대출로 자동 반영 · 카드 할부 항목 추가 가능</div>
+          <div class="subtle">공동명의 기준 · 신용대출 실행금액과 변동비 조달 계획을 분리해 확인</div>
         </div>
         <div class="header-actions">
           <span class="save-status" id="save-status">자동 저장 대기</span>
@@ -153,7 +153,7 @@
               <div class="group-heading"><span class="group-step">2</span><h3>조정값</h3><span>신용대출·상환 조건을 비교</span></div>
               <div class="fields">
               <div class="field">
-                <label for="joint_credit_amount_krw">신용대출 실행금액</label>
+                <label for="joint_credit_amount_krw">신용대출 실행 예정금액</label>
                 <div class="input-wrap"><input id="joint_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
               </div>
               <div class="field">
@@ -228,7 +228,6 @@
                   <tbody>
                     <tr><td>인정 연소득</td><td id="joint-income-result">-</td></tr>
                     <tr><td>DSR 계산 기준</td><td id="joint-dsr-rate-note">-</td></tr>
-                    <tr><td>매매 잔금 부족액 (참고)</td><td id="joint-credit-required">-</td></tr>
                     <tr><td><strong>주담대만 반영 시 DSR 여유</strong></td><td id="joint-extra-credit">-</td></tr>
                   </tbody>
                 </table>
@@ -247,9 +246,11 @@
             <div class="result-summary card-total-summary">
               <div class="pill"><div class="pill-label">변동비 총액</div><div class="pill-value" id="variable-cost-total">-</div></div>
               <div class="pill"><div class="pill-label">카드 결제 예정</div><div class="pill-value" id="card-grand-total">-</div></div>
-              <div class="pill"><div class="pill-label">신용대출 조달</div><div class="pill-value" id="credit-cost-total">-</div></div>
-              <div class="pill"><div class="pill-label">현금 조달</div><div class="pill-value" id="cash-cost-total">-</div></div>
+              <div class="pill"><div class="pill-label">잔금 후 남은 신용대출</div><div class="pill-value" id="remaining-credit-for-variable">-</div></div>
+              <div class="pill"><div class="pill-label">변동비 추가 필요 신용대출</div><div class="pill-value" id="variable-credit-gap">-</div></div>
+              <div class="pill"><div class="pill-label">필요 현금</div><div class="pill-value" id="cash-cost-total">-</div></div>
             </div>
+            <div class="mini">신용대출은 우선 매매 잔금에 반영합니다. ‘잔금 후 남은 신용대출’을 변동비에 먼저 쓰고, 부족한 신용대출 조달 변동비만 ‘변동비 추가 필요 신용대출’로 표시합니다. 현금 선택 비용은 잔금 계산과 별도의 ‘필요 현금’입니다.</div>
             <table>
               <thead><tr><th>항목</th><th>비용</th><th>조달 방식</th><th>카드개월</th><th>카드 월 납입</th></tr></thead>
               <tbody id="card-results"></tbody>
@@ -263,7 +264,7 @@
                 <tbody>
                   <tr><td>보유 현금</td><td id="ledger-cash">-</td><td>매매가</td><td id="ledger-purchase">-</td></tr>
                   <tr><td>주담대</td><td id="ledger-mortgage">-</td><td></td><td></td></tr>
-                  <tr><td>잔금 부족분 신용대출</td><td id="ledger-credit">-</td><td></td><td></td></tr>
+                  <tr><td>신용대출 실행 예정금액</td><td id="ledger-credit">-</td><td></td><td></td></tr>
                 </tbody>
                 <tbody id="ledger-additional-funds"></tbody>
                 <tbody>
@@ -715,7 +716,6 @@
         const mortgage = getAmount("joint_mortgage_amount_krw");
         const additionalFundTotal = additionalFunds.reduce((sum, fund) => sum + fund.amount, 0);
         const fixedExpenseTotal = fixedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-        const creditRequired = Math.max(0, purchase - cashAvailable - mortgage - additionalFundTotal);
         const creditAmount = getAmount("joint_credit_amount_krw");
         const joint = planDsr({
           income: getAmount("joint_borrower_income_krw") + getAmount("joint_spouse_income_krw"),
@@ -726,8 +726,9 @@
 
         document.getElementById("card-grand-total").textContent = compactWon(cardTotal);
         document.getElementById("variable-cost-total").textContent = compactWon(variableCostTotal);
-        document.getElementById("credit-cost-total").textContent = compactWon(creditCostTotal);
-        document.getElementById("cash-cost-total").textContent = compactWon(cashCostTotal);
+        const cashCostTotalElement = document.getElementById("cash-cost-total");
+        cashCostTotalElement.textContent = compactWon(cashCostTotal);
+        cashCostTotalElement.className = `pill-value ${cashCostTotal > 0 ? "danger" : "ok"}`;
         const mortgageMonthly = annuity(mortgage, common.mortgageRate, common.mortgageMonths);
         const creditMonthly = annuity(creditAmount, common.creditRate, common.creditMonths);
         const monthlyTotalExpense = mortgageMonthly + creditMonthly + cardMonthly + fixedExpenseTotal;
@@ -735,12 +736,17 @@
         document.getElementById("monthly-debt-summary").textContent = compactWon(monthlyTotalExpense);
 
         renderPlan("joint", joint);
-        document.getElementById("joint-credit-required").textContent = compactWon(creditRequired);
         renderLoanPaymentInfo(common, creditAmount);
         renderBank("joint", joint.dsr);
         const fundingTotal = cashAvailable + mortgage + creditAmount + additionalFundTotal;
         const useTotal = purchase;
         const remaining = fundingTotal - useTotal;
+        const remainingCreditForVariable = Math.min(creditAmount, Math.max(0, remaining));
+        const variableCreditGap = Math.max(0, creditCostTotal - remainingCreditForVariable);
+        document.getElementById("remaining-credit-for-variable").textContent = compactWon(remainingCreditForVariable);
+        const variableCreditGapElement = document.getElementById("variable-credit-gap");
+        variableCreditGapElement.textContent = compactWon(variableCreditGap);
+        variableCreditGapElement.className = `pill-value ${variableCreditGap > 0 ? "danger" : "ok"}`;
         const ledgerValues = {
           "ledger-cash": cashAvailable,
           "ledger-mortgage": mortgage,
