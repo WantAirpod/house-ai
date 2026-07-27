@@ -7,7 +7,7 @@
     <title>기흥역센트럴푸르지오 잔금 계산기</title>
     <style>
       :root {
-        --bg:#f4f5f2; --surface:#fff; --muted:#667068; --ink:#17201b;
+        --bg:#f5f7f5; --surface:#fff; --muted:#667068; --ink:#17201b;
         --line:#d8ddd8; --accent:#176b48; --accent-soft:#e8f2ec;
         --warning:#a35a00; --warning-soft:#fff3df; --danger:#a13232; --danger-soft:#fbeaea;
       }
@@ -19,13 +19,21 @@
       h1 { margin:0; font-size:22px; }
       .subtle { color:var(--muted); font-size:13px; margin-top:4px; }
       main { padding:22px 0 44px; }
-      .grid { display:grid; grid-template-columns:640px 1fr; gap:16px; align-items:start; }
-      .panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
-      .panel h2 { margin:0; padding:14px 16px; border-bottom:1px solid var(--line); font-size:15px; }
-      .body { padding:16px; }
+      .grid { display:grid; grid-template-columns:minmax(440px, .8fr) minmax(560px, 1.2fr); gap:20px; align-items:start; }
+      .panel { background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 8px 24px rgba(23,32,27,.04); }
+      .panel h2 { margin:0; padding:17px 20px; border-bottom:1px solid var(--line); font-size:16px; }
+      .body { padding:20px; }
       .fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
       .field.full { grid-column:1/-1; }
       .fieldset-title { grid-column:1/-1; margin-top:4px; color:var(--accent); font-size:13px; font-weight:750; }
+      .input-group { margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:10px; background:#fcfdfc; }
+      .input-group:first-child { margin-top:0; }
+      .group-heading { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+      .group-step { display:grid; place-items:center; width:23px; height:23px; border-radius:50%; background:var(--accent); color:#fff; font-size:12px; font-weight:800; }
+      .group-heading h3 { margin:0; font-size:14px; }
+      .group-heading span:last-child { margin-left:auto; color:var(--muted); font-size:11px; }
+      .scenario-group { background:#fffcf7; border-color:#eadfcf; }
+      .scenario-group .group-step { background:#a35a00; }
       label { display:block; font-size:13px; color:#404a43; margin-bottom:6px; }
       .input-wrap { position:relative; }
       input { width:100%; height:40px; border:1px solid var(--line); border-radius:6px; padding:0 48px 0 10px; font:inherit; }
@@ -43,7 +51,7 @@
       th, td { padding:10px 8px; border-bottom:1px solid #e8ebe8; text-align:left; font-size:13px; }
       th { background:#f0f2ee; color:var(--muted); font-weight:650; }
       td:last-child, th:last-child { text-align:right; }
-      .section-title { margin:18px 0 0; font-size:14px; }
+      .section-title { margin:20px 0 0; font-size:14px; }
       .mini { color:var(--muted); font-size:12px; line-height:1.45; }
       .warning { margin-top:12px; padding:10px 12px; border-left:3px solid var(--warning); background:var(--warning-soft); font-size:12px; line-height:1.5; }
       .warning.danger { border-color:var(--danger); background:var(--danger-soft); }
@@ -51,15 +59,22 @@
       .header-actions { display:flex; align-items:center; gap:10px; }
       .save-status { color:var(--muted); font-size:12px; white-space:nowrap; }
       .share-note { color:var(--muted); font-size:11px; white-space:nowrap; }
-      .result-card { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
+      .result-card { border:1px solid var(--line); border-radius:10px; padding:16px; background:#fff; }
+      .funding-summary { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:18px; }
+      .funding-summary-item { padding:14px; border:1px solid var(--line); border-radius:10px; background:#f8faf8; }
+      .funding-summary-item.emphasis { border-color:var(--accent); background:var(--accent-soft); }
+      .funding-summary-label { color:var(--muted); font-size:12px; }
+      .funding-summary-value { margin-top:6px; font-size:21px; font-weight:850; letter-spacing:-.4px; }
       .result-card h3 { margin:0; font-size:16px; }
-      .result-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
-      .result-summary.card-total-summary { grid-template-columns:repeat(3,1fr); }
-      .pill { border-radius:8px; padding:10px; background:#f7f8f6; }
+      .result-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px; }
+      .result-summary.card-total-summary { grid-template-columns:repeat(4,1fr); }
+      .pill { border-radius:9px; padding:12px; background:#f4f7f4; }
       .pill-label { color:var(--muted); font-size:12px; }
       .pill-value { margin-top:4px; font-size:19px; font-weight:800; }
-      .final-report { margin-top:20px; border:2px solid var(--accent); border-radius:10px; padding:14px; background:#fbfffc; box-shadow:0 6px 16px rgba(23,107,72,0.08); }
+      .final-report { margin-top:22px; border:2px solid var(--accent); border-radius:12px; padding:16px; background:#fbfffc; box-shadow:0 8px 20px rgba(23,107,72,0.08); }
       .final-report h3 { margin:0 0 8px; font-size:17px; color:var(--accent); }
+      .monthly-budget { margin-top:18px; border:1px solid var(--line); border-radius:10px; padding:16px; background:#fff; }
+      .monthly-budget h3 { margin:0; font-size:15px; }
       .final-balance { font-size:24px; font-weight:900; }
       .bank-judgement { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
       .bank-box { border:1px solid var(--line); border-radius:8px; padding:10px; }
@@ -69,17 +84,20 @@
       .bank-result { margin-top:4px; font-size:16px; font-weight:800; }
       .card-input-list { display:grid; gap:10px; margin-top:12px; }
       .card-input-row { border:1px solid var(--line); border-radius:8px; padding:14px; background:#fafbf9; }
-      .card-input-fields { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:12px; align-items:end; }
+      .card-input-fields { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; align-items:end; }
       .card-input-fields .card-name { grid-column:1 / -1; }
+      button, select { font:inherit; }
       button { min-height:36px; border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:0 12px; cursor:pointer; }
-      .remove-card { color:var(--danger); }
+      select { width:100%; height:40px; border:1px solid var(--line); border-radius:6px; background:#fff; padding:0 8px; }
+      .remove-card { color:var(--danger); justify-self:start; }
       .ledger-note { margin:18px 0 -8px; color:var(--muted); font-size:12px; line-height:1.5; }
       .ledger-table th:first-child, .ledger-table td:first-child { border-right:1px solid var(--line); }
       .ledger-table th:nth-child(3), .ledger-table td:nth-child(3) { padding-left:16px; }
       .ledger-table .ledger-total td { background:#f0f2ee; font-weight:750; }
       .ledger-table .ledger-remaining td { background:var(--accent-soft); font-weight:750; }
-      @media (max-width:1080px) { .grid { grid-template-columns:1fr; } .metrics { grid-template-columns:1fr 1fr; } }
-      @media (max-width:720px) { .fields,.metrics,.card-input-fields,.result-summary,.bank-judgement { grid-template-columns:1fr; } .card-input-fields .card-name { grid-column:auto; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
+      .result-panel { position:sticky; top:16px; }
+      @media (max-width:1080px) { .grid { grid-template-columns:1fr; } .result-panel { position:static; } .metrics { grid-template-columns:1fr 1fr; } }
+      @media (max-width:720px) { .fields,.metrics,.card-input-fields,.result-summary,.bank-judgement,.funding-summary { grid-template-columns:1fr; } .card-input-fields .card-name { grid-column:auto; } .header-inner { align-items:flex-start; flex-direction:column; padding:14px 0; } }
     </style>
   </head>
   <body>
@@ -101,7 +119,9 @@
         <section class="panel">
           <h2>입력</h2>
           <div class="body">
-            <div class="fields">
+            <section class="input-group fixed-group">
+              <div class="group-heading"><span class="group-step">1</span><h3>고정값</h3><span>거래 기준을 먼저 확정</span></div>
+              <div class="fields">
                 <div class="field">
                   <label for="joint_purchase_price_krw">매매가</label>
                   <div class="input-wrap"><input id="joint_purchase_price_krw" type="number" readonly><span class="unit">만원</span></div>
@@ -126,17 +146,19 @@
                   <label for="joint_dsr_limit_percent">DSR 한도</label>
                   <div class="input-wrap"><input id="joint_dsr_limit_percent" type="number" min="0" step="1"><span class="unit">%</span></div>
                 </div>
-            </div>
+              </div>
+            </section>
 
-            <div class="fields" style="margin-top:14px;">
-              <div class="fieldset-title">공통 대출 조건</div>
+            <section class="input-group scenario-group">
+              <div class="group-heading"><span class="group-step">2</span><h3>조정값</h3><span>신용대출·상환 조건을 비교</span></div>
+              <div class="fields">
+              <div class="field">
+                <label for="joint_credit_amount_krw">신용대출 실행금액</label>
+                <div class="input-wrap"><input id="joint_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
+              </div>
               <div class="field">
                 <label for="mortgage_rate_percent">주담대 실제금리</label>
                 <div class="input-wrap"><input id="mortgage_rate_percent" type="number" min="0" step="0.01"><span class="unit">%</span></div>
-              </div>
-              <div class="field">
-                <label for="mortgage_dsr_rate_percent">주담대 DSR 산정금리</label>
-                <div class="input-wrap"><input id="mortgage_dsr_rate_percent" type="number" min="0" step="0.01"><span class="unit">%</span></div>
               </div>
               <div class="field">
                 <label for="mortgage_term_years">주담대 만기</label>
@@ -147,42 +169,56 @@
                 <div class="input-wrap"><input id="credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
               <div class="field">
-                <label for="spouse_credit_rate_percent">와이프 신용대출 금리</label>
-                <div class="input-wrap"><input id="spouse_credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
-              </div>
-              <div class="field">
-                <label for="borrower_net_monthly_income_krw">내 세후 월급</label>
-                <div class="input-wrap"><input id="borrower_net_monthly_income_krw" type="number" min="0" step="10"><span class="unit">만원</span></div>
-              </div>
-              <div class="field">
-                <label for="spouse_net_monthly_income_krw">와이프 세후 월급</label>
-                <div class="input-wrap"><input id="spouse_net_monthly_income_krw" type="number" min="0" step="10"><span class="unit">만원</span></div>
-              </div>
-              <div class="field">
                 <label for="credit_term_years">신용대출 만기</label>
                 <div class="input-wrap"><input id="credit_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
               </div>
+              </div>
+            </section>
+
+            <section class="input-group scenario-group">
+            <div class="group-heading"><span class="group-step">3</span><h3>추가 조달 · 변동비</h3><span>비용과 조달 방식을 함께 결정</span></div>
+            <h3 class="section-title" style="margin-top:0;">추가 조달 자금</h3>
+            <div class="mini">부모님 차용, 보증금 반환금, 기타 현금처럼 차변(+)에 더할 자금을 필요한 만큼 추가하세요.</div>
+            <div class="card-input-list" id="additional-fund-inputs"></div>
+            <div class="row-actions">
+              <button id="add-additional-fund" type="button">추가 조달 자금 넣기</button>
             </div>
 
-            <h3 class="section-title">카드 할부 항목</h3>
-            <div class="mini">필요한 만큼 항목을 추가해. 각 결제액·할부개월·금리를 따로 계산해서 월 납입 합계를 보여준다.</div>
+            <h3 class="section-title">변동비 항목과 조달 방식</h3>
+            <div class="mini">취득세·이사비·인테리어 등 비용마다 카드 할부, 신용대출, 현금 중 조달 방식을 선택하세요.</div>
             <div class="card-input-list" id="card-inputs"></div>
             <div class="row-actions">
-              <button id="add-card" type="button">카드 항목 추가</button>
+              <button id="add-card" type="button">변동비 항목 추가</button>
             </div>
+            </section>
+
+            <section class="input-group">
+              <div class="group-heading"><span class="group-step">4</span><h3>월 고정비</h3><span>매월 반복되는 지출</span></div>
+              <div class="mini">생활비, 관리비, 보험료처럼 대출·카드 외에 매달 나가는 비용을 추가하세요.</div>
+              <div class="card-input-list" id="fixed-expense-inputs"></div>
+              <div class="row-actions">
+                <button id="add-fixed-expense" type="button">월 고정비 추가</button>
+              </div>
+            </section>
           </div>
         </section>
 
-        <section class="panel">
-          <h2>계산 결과</h2>
+        <section class="panel result-panel">
+          <h2>결과 · 조달 자금 점검</h2>
           <div class="body">
+            <section class="funding-summary" aria-label="자금 요약">
+              <div class="funding-summary-item"><div class="funding-summary-label">매매 잔금 (매매가)</div><div class="funding-summary-value" id="summary-use-total">-</div></div>
+              <div class="funding-summary-item"><div class="funding-summary-label">잔금 조달 자금</div><div class="funding-summary-value" id="summary-funding-total">-</div></div>
+              <div class="funding-summary-item emphasis"><div class="funding-summary-label">남은 돈 (잔금 기준)</div><div class="funding-summary-value" id="summary-remaining">-</div></div>
+            </section>
             <div>
               <section class="result-card">
                 <h3>공동명의 결과</h3>
                 <div class="result-summary">
                   <div class="pill"><div class="pill-label">DSR</div><div class="pill-value" id="joint-dsr-row">-</div></div>
-                  <div class="pill"><div class="pill-label">대출 월 납입</div><div class="pill-value" id="joint-monthly-payment">-</div></div>
-                  <div class="pill"><div class="pill-label">카드 포함 월 납입</div><div class="pill-value" id="joint-with-card-monthly">-</div></div>
+                  <div class="pill"><div class="pill-label">주담대·신용 월 납입</div><div class="pill-value" id="joint-monthly-payment">-</div></div>
+                  <div class="pill"><div class="pill-label">카드 할부 월 납입</div><div class="pill-value" id="card-monthly-summary">-</div></div>
+                  <div class="pill"><div class="pill-label">월 총 지출 (고정비 포함)</div><div class="pill-value" id="monthly-debt-summary">-</div></div>
                 </div>
                 <div class="bank-judgement">
                   <div class="bank-box" id="joint-bank1-box"><div class="bank-title">1금융권 40%</div><div class="bank-result" id="joint-bank1">-</div></div>
@@ -192,6 +228,7 @@
                   <tbody>
                     <tr><td>인정 연소득</td><td id="joint-income-result">-</td></tr>
                     <tr><td>DSR 계산 기준</td><td id="joint-dsr-rate-note">-</td></tr>
+                    <tr><td>매매 잔금 부족액 (참고)</td><td id="joint-credit-required">-</td></tr>
                     <tr><td><strong>주담대만 반영 시 DSR 여유</strong></td><td id="joint-extra-credit">-</td></tr>
                   </tbody>
                 </table>
@@ -206,38 +243,48 @@
               </table>
             </div>
 
-            <h3 class="section-title">카드 할부 결과</h3>
+            <h3 class="section-title">변동비 · 조달 방식 결과</h3>
             <div class="result-summary card-total-summary">
-              <div class="pill"><div class="pill-label">카드 결제 총액</div><div class="pill-value" id="card-grand-total">-</div></div>
-              <div class="pill"><div class="pill-label">매월 카드 할부 납입</div><div class="pill-value" id="card-grand-monthly">-</div></div>
-              <div class="pill"><div class="pill-label">공동명의 최종 월 납입</div><div class="pill-value" id="joint-final-monthly-total">-</div></div>
+              <div class="pill"><div class="pill-label">변동비 총액</div><div class="pill-value" id="variable-cost-total">-</div></div>
+              <div class="pill"><div class="pill-label">카드 결제 예정</div><div class="pill-value" id="card-grand-total">-</div></div>
+              <div class="pill"><div class="pill-label">신용대출 조달</div><div class="pill-value" id="credit-cost-total">-</div></div>
+              <div class="pill"><div class="pill-label">현금 조달</div><div class="pill-value" id="cash-cost-total">-</div></div>
             </div>
             <table>
-              <thead><tr><th>항목</th><th>결제액</th><th>개월</th><th>월 납입</th></tr></thead>
+              <thead><tr><th>항목</th><th>비용</th><th>조달 방식</th><th>카드개월</th><th>카드 월 납입</th></tr></thead>
               <tbody id="card-results"></tbody>
             </table>
             <div id="warnings"></div>
 
             <section class="final-report">
-              <div>
-                <h3>최종 월 현금흐름</h3>
-                <table>
-                  <thead><tr><th>최종 수입</th><th>최종 지출</th><th>남는 돈</th></tr></thead>
-                  <tbody>
-                    <tr><td id="joint-final-income">-</td><td id="joint-final-expense">-</td><td id="joint-final-balance" class="final-balance">-</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p class="ledger-note">왼쪽 플러스 조달 자금과 오른쪽 마이너스 사용처의 차이가 매수 후 남은 돈입니다. 카드 항목은 결제수단이므로 조달과 사용처에 같은 금액으로 반영합니다.</p>
+              <p class="ledger-note">이 표는 매매가 잔금만 계산합니다. 이사비·인테리어·카드 등 변동비는 아래 월 납입·고정비 영역에서 별도로 관리합니다.</p>
               <table class="ledger-table">
                 <thead><tr><th colspan="2">차변 (+) · 조달 자금</th><th colspan="2">대변 (-) · 사용처</th></tr></thead>
                 <tbody>
                   <tr><td>보유 현금</td><td id="ledger-cash">-</td><td>매매가</td><td id="ledger-purchase">-</td></tr>
-                  <tr><td>주담대</td><td id="ledger-mortgage">-</td><td>카드 결제 합계</td><td id="ledger-card-use">-</td></tr>
+                  <tr><td>주담대</td><td id="ledger-mortgage">-</td><td></td><td></td></tr>
                   <tr><td>잔금 부족분 신용대출</td><td id="ledger-credit">-</td><td></td><td></td></tr>
-                  <tr><td>카드 결제 합계</td><td id="ledger-card-funding">-</td><td></td><td></td></tr>
-                  <tr class="ledger-total"><td>플러스 합계</td><td id="ledger-funding-total">-</td><td>마이너스 합계</td><td id="ledger-use-total">-</td></tr>
-                  <tr class="ledger-remaining"><td>남은 돈 (플러스 − 마이너스)</td><td id="ledger-remaining">-</td><td>자금 상태</td><td id="ledger-status">-</td></tr>
+                </tbody>
+                <tbody id="ledger-additional-funds"></tbody>
+                <tbody>
+                  <tr class="ledger-total"><td>잔금 조달 합계</td><td id="ledger-funding-total">-</td><td>매매 잔금 합계</td><td id="ledger-use-total">-</td></tr>
+                  <tr class="ledger-remaining"><td>남은 돈 (매매 잔금 기준)</td><td id="ledger-remaining">-</td><td>자금 상태</td><td id="ledger-status">-</td></tr>
+                </tbody>
+              </table>
+            </section>
+            <section class="monthly-budget">
+              <h3>월 납입·고정비 합계</h3>
+              <p class="ledger-note">카드로 결제한 변동비는 총액 대신 실제 할부 개월수 기준의 월 납입액으로 표시합니다.</p>
+              <table>
+                <thead><tr><th>월 지출 항목</th><th>월 금액</th></tr></thead>
+                <tbody>
+                  <tr><td>주담대 원리금</td><td id="monthly-mortgage">-</td></tr>
+                  <tr><td>신용대출 원리금</td><td id="monthly-credit">-</td></tr>
+                  <tr><td>카드 할부 합계</td><td id="monthly-card">-</td></tr>
+                </tbody>
+                <tbody id="monthly-fixed-expenses"></tbody>
+                <tbody>
+                  <tr class="ledger-total"><td>월 총 지출</td><td id="monthly-total-expense">-</td></tr>
                 </tbody>
               </table>
             </section>
@@ -250,35 +297,44 @@
       const defaults = {
         purchase: 1017000000,
         jointMortgage: 600000000,
-        cashAvailable: 360000000,
+        cashAvailable: 285000000,
+        jointCredit: 65000000,
         borrowerIncome: 97400000,
         spouseIncome: 46000000,
         dsrLimit: 50,
         mortgageRate: 4.7,
-        mortgageDsrRate: 7.01,
         mortgageTerm: 30,
         creditRate: 6.5,
-        borrowerNetMonthlyIncome: 5500000,
-        spouseNetMonthlyIncome: 3300000,
         creditTerm: 5,
         cards: [
-          { label:"취득세", amount:31361000, months:12, rate:0 },
-          { label:"중개보수", amount:5593500, months:3, rate:0 },
-          { label:"법무비", amount:2000000, months:3, rate:0 },
+          { label:"취등록세 (3,156만원)", amount:31560000, funding:"card", months:12, rate:0 },
+          { label:"중개보수", amount:5593500, funding:"card", months:3, rate:0 },
+          { label:"법무비", amount:2000000, funding:"card", months:3, rate:0 },
+          { label:"이사비", amount:0, funding:"cash", months:1, rate:0 },
+          { label:"이사비 외 인테리어비", amount:20000000, funding:"credit", months:1, rate:0 },
+        ],
+        additionalFunds: [
+          { label:"부모님 차용(충숙)", amount:50000000 },
+          { label:"부모님 차용(으니)", amount:20000000 },
+        ],
+        fixedExpenses: [
+          { label:"생활비", amount:0 },
+          { label:"관리비", amount:0 },
         ],
       };
       const storageKey = "home-decision-financing-calculator-v2";
       let cards = [];
+      let additionalFunds = [];
+      let fixedExpenses = [];
 
       const amountIds = new Set([
         "joint_purchase_price_krw","joint_mortgage_amount_krw","joint_borrower_income_krw",
-        "joint_spouse_income_krw","cash_available_krw"
+        "joint_spouse_income_krw","cash_available_krw","joint_credit_amount_krw"
       ]);
       const inputIds = [
         ...amountIds, "joint_dsr_limit_percent",
-        "mortgage_rate_percent","mortgage_dsr_rate_percent","mortgage_term_years",
-        "credit_rate_percent","borrower_net_monthly_income_krw",
-        "spouse_net_monthly_income_krw","credit_term_years",
+        "mortgage_rate_percent","mortgage_term_years",
+        "credit_rate_percent","credit_term_years",
       ];
 
       const compactWon = v => {
@@ -331,23 +387,25 @@
         setAmount("joint_borrower_income_krw", defaults.borrowerIncome);
         setAmount("joint_spouse_income_krw", defaults.spouseIncome);
         setAmount("cash_available_krw", defaults.cashAvailable);
+        setAmount("joint_credit_amount_krw", defaults.jointCredit);
         document.getElementById("joint_dsr_limit_percent").value = defaults.dsrLimit;
         document.getElementById("mortgage_rate_percent").value = defaults.mortgageRate;
-        document.getElementById("mortgage_dsr_rate_percent").value = defaults.mortgageDsrRate;
         document.getElementById("mortgage_term_years").value = defaults.mortgageTerm;
         document.getElementById("credit_rate_percent").value = defaults.creditRate;
-        setAmount("borrower_net_monthly_income_krw", defaults.borrowerNetMonthlyIncome);
-        setAmount("spouse_net_monthly_income_krw", defaults.spouseNetMonthlyIncome);
         document.getElementById("credit_term_years").value = defaults.creditTerm;
         cards = defaults.cards.map(item => ({...item}));
+        additionalFunds = defaults.additionalFunds.map(item => ({...item}));
+        fixedExpenses = defaults.fixedExpenses.map(item => ({...item}));
         renderCardInputs();
+        renderAdditionalFundInputs();
+        renderFixedExpenseInputs();
       }
       function readState() {
         const values = {};
         inputIds.forEach(id => {
           values[id] = document.getElementById(id)?.value ?? "";
         });
-        return { values, cards };
+        return { values, cards, additionalFunds, fixedExpenses };
       }
       function saveState() {
         localStorage.setItem(storageKey, JSON.stringify(readState()));
@@ -361,7 +419,11 @@
           if (el) el.value = value;
         });
         cards = Array.isArray(state.cards) ? state.cards.map(item => ({...item})) : defaults.cards.map(item => ({...item}));
+        additionalFunds = Array.isArray(state.additionalFunds) ? state.additionalFunds.map(item => ({...item})) : defaults.additionalFunds.map(item => ({...item}));
+        fixedExpenses = Array.isArray(state.fixedExpenses) ? state.fixedExpenses.map(item => ({...item})) : defaults.fixedExpenses.map(item => ({...item}));
         renderCardInputs();
+        renderAdditionalFundInputs();
+        renderFixedExpenseInputs();
         const status = document.getElementById("save-status");
         if (status) status.textContent = "저장값 불러옴";
         return true;
@@ -450,7 +512,7 @@
       function readCommon() {
         return {
           mortgageRate: getNumber("mortgage_rate_percent"),
-          mortgageDsrRate: getNumber("mortgage_dsr_rate_percent"),
+          mortgageDsrRate: getNumber("mortgage_rate_percent"),
           mortgageMonths: getNumber("mortgage_term_years") * 12,
           creditRate: getNumber("credit_rate_percent"),
           creditMonths: getNumber("credit_term_years") * 12,
@@ -479,14 +541,22 @@
                 <input data-card="${index}" data-field="label" value="${card.label}">
               </div>
               <div>
-                <label>결제액</label>
+                <label>비용</label>
                 <div class="input-wrap"><input data-card="${index}" data-field="amount" type="number" min="0" step="10" value="${Math.round(card.amount/10000)}"><span class="unit">만원</span></div>
               </div>
               <div>
+                <label>조달 방식</label>
+                <select data-card="${index}" data-field="funding">
+                  <option value="card"${(card.funding || "card") === "card" ? " selected" : ""}>카드 할부</option>
+                  <option value="credit"${card.funding === "credit" ? " selected" : ""}>신용대출</option>
+                  <option value="cash"${card.funding === "cash" ? " selected" : ""}>현금</option>
+                </select>
+              </div>
+              <div class="card-only" style="visibility:${(card.funding || "card") === "card" ? "visible" : "hidden"}">
                 <label>할부개월</label>
                 <div class="input-wrap"><input data-card="${index}" data-field="months" type="number" min="1" step="1" value="${card.months}"><span class="unit">개월</span></div>
               </div>
-              <div>
+              <div class="card-only" style="visibility:${(card.funding || "card") === "card" ? "visible" : "hidden"}">
                 <label>할부금리</label>
                 <div class="input-wrap"><input data-card="${index}" data-field="rate" type="number" min="0" step="0.1" value="${card.rate}"><span class="unit">%</span></div>
               </div>
@@ -495,13 +565,14 @@
           `;
           tbody.appendChild(row);
         });
-        tbody.querySelectorAll("input").forEach(input => input.addEventListener("input", event => {
+        tbody.querySelectorAll("input, select").forEach(input => input.addEventListener("input", event => {
           const index = Number(event.target.dataset.card);
           const field = event.target.dataset.field;
           if (field === "amount") cards[index][field] = Math.round(Number(event.target.value || 0) * 10000);
           else if (field === "months") cards[index][field] = Math.max(1, Number(event.target.value || 1));
           else if (field === "rate") cards[index][field] = Number(event.target.value || 0);
           else cards[index][field] = event.target.value;
+          if (field === "funding") renderCardInputs();
           saveState();
           calculate();
         }));
@@ -516,7 +587,84 @@
       function cardRows() {
         return cards.map(card => ({
           ...card,
-          monthly: annuity(card.amount, card.rate, Math.max(1, card.months)),
+          funding: card.funding || "card",
+          monthly: (card.funding || "card") === "card"
+            ? annuity(card.amount, card.rate, Math.max(1, card.months))
+            : 0,
+        }));
+      }
+      function renderAdditionalFundInputs() {
+        const container = document.getElementById("additional-fund-inputs");
+        container.innerHTML = "";
+        additionalFunds.forEach((fund, index) => {
+          const row = document.createElement("div");
+          row.className = "card-input-row";
+          row.innerHTML = `
+            <div class="card-input-fields">
+              <div class="card-name">
+                <label>항목명</label>
+                <input data-fund="${index}" data-field="label" value="${fund.label}">
+              </div>
+              <div>
+                <label>조달 금액</label>
+                <div class="input-wrap"><input data-fund="${index}" data-field="amount" type="number" min="0" step="10" value="${Math.round(fund.amount / 10000)}"><span class="unit">만원</span></div>
+              </div>
+              <button class="remove-card" type="button" data-remove-fund="${index}">삭제</button>
+            </div>
+          `;
+          container.appendChild(row);
+        });
+        container.querySelectorAll("input").forEach(input => input.addEventListener("input", event => {
+          const index = Number(event.target.dataset.fund);
+          const field = event.target.dataset.field;
+          additionalFunds[index][field] = field === "amount"
+            ? Math.round(Number(event.target.value || 0) * 10000)
+            : event.target.value;
+          saveState();
+          calculate();
+        }));
+        container.querySelectorAll("[data-remove-fund]").forEach(button => button.addEventListener("click", event => {
+          additionalFunds.splice(Number(event.target.dataset.removeFund), 1);
+          renderAdditionalFundInputs();
+          saveState();
+          calculate();
+        }));
+      }
+      function renderFixedExpenseInputs() {
+        const container = document.getElementById("fixed-expense-inputs");
+        container.innerHTML = "";
+        fixedExpenses.forEach((expense, index) => {
+          const row = document.createElement("div");
+          row.className = "card-input-row";
+          row.innerHTML = `
+            <div class="card-input-fields">
+              <div class="card-name">
+                <label>항목명</label>
+                <input data-fixed-expense="${index}" data-field="label" value="${expense.label}">
+              </div>
+              <div>
+                <label>월 지출</label>
+                <div class="input-wrap"><input data-fixed-expense="${index}" data-field="amount" type="number" min="0" step="10" value="${Math.round(expense.amount / 10000)}"><span class="unit">만원</span></div>
+              </div>
+              <button class="remove-card" type="button" data-remove-fixed-expense="${index}">삭제</button>
+            </div>
+          `;
+          container.appendChild(row);
+        });
+        container.querySelectorAll("input").forEach(input => input.addEventListener("input", event => {
+          const index = Number(event.target.dataset.fixedExpense);
+          const field = event.target.dataset.field;
+          fixedExpenses[index][field] = field === "amount"
+            ? Math.round(Number(event.target.value || 0) * 10000)
+            : event.target.value;
+          saveState();
+          calculate();
+        }));
+        container.querySelectorAll("[data-remove-fixed-expense]").forEach(button => button.addEventListener("click", event => {
+          fixedExpenses.splice(Number(event.target.dataset.removeFixedExpense), 1);
+          renderFixedExpenseInputs();
+          saveState();
+          calculate();
         }));
       }
       function renderPlan(prefix, result) {
@@ -524,7 +672,7 @@
         document.getElementById(`${prefix}-dsr-row`).textContent = pct(result.dsr);
         document.getElementById(`${prefix}-dsr-row`).className = `pill-value ${classByLimit(result.dsr, result.dsrLimit)}`;
         document.getElementById(`${prefix}-monthly-payment`).textContent = compactWon(result.monthlyPayment);
-        document.getElementById(`${prefix}-dsr-rate-note`).textContent = `주담대 ${getNumber("mortgage_dsr_rate_percent")}%만 반영 · 신용대출은 월납입만 반영`;
+        document.getElementById(`${prefix}-dsr-rate-note`).textContent = `주담대 실제금리 ${getNumber("mortgage_rate_percent")}% 기준 · 신용대출은 월납입만 반영`;
         document.getElementById(`${prefix}-extra-credit`).textContent = compactWon(result.extraCreditCapacity);
         document.getElementById(`${prefix}-extra-credit`).className = result.extraCreditCapacity > 0 ? "ok" : "danger";
       }
@@ -558,58 +706,95 @@
         const common = readCommon();
         const rows = cardRows();
         const cardMonthly = rows.reduce((sum, row) => sum + row.monthly, 0);
-        const cardTotal = rows.reduce((sum, row) => sum + row.amount, 0);
+        const variableCostTotal = rows.reduce((sum, row) => sum + row.amount, 0);
+        const cardTotal = rows.filter(row => row.funding === "card").reduce((sum, row) => sum + row.amount, 0);
+        const creditCostTotal = rows.filter(row => row.funding === "credit").reduce((sum, row) => sum + row.amount, 0);
+        const cashCostTotal = rows.filter(row => row.funding === "cash").reduce((sum, row) => sum + row.amount, 0);
         const purchase = getAmount("joint_purchase_price_krw");
         const cashAvailable = getAmount("cash_available_krw");
         const mortgage = getAmount("joint_mortgage_amount_krw");
-        const creditRequired = Math.max(0, purchase - cashAvailable - mortgage);
+        const additionalFundTotal = additionalFunds.reduce((sum, fund) => sum + fund.amount, 0);
+        const fixedExpenseTotal = fixedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const creditRequired = Math.max(0, purchase - cashAvailable - mortgage - additionalFundTotal);
+        const creditAmount = getAmount("joint_credit_amount_krw");
         const joint = planDsr({
           income: getAmount("joint_borrower_income_krw") + getAmount("joint_spouse_income_krw"),
           mortgage,
-          credit: creditRequired,
+          credit: creditAmount,
           dsrLimit: getNumber("joint_dsr_limit_percent"),
         }, common);
 
         document.getElementById("card-grand-total").textContent = compactWon(cardTotal);
-        document.getElementById("card-grand-monthly").textContent = compactWon(cardMonthly);
-        document.getElementById("joint-with-card-monthly").textContent = compactWon(joint.monthlyPayment + cardMonthly);
-        const netMonthlyIncome = getAmount("borrower_net_monthly_income_krw") + getAmount("spouse_net_monthly_income_krw");
-        const jointFinalExpense = joint.monthlyPayment + cardMonthly;
-        const jointBalance = netMonthlyIncome - jointFinalExpense;
-        document.getElementById("joint-final-income").textContent = compactWon(netMonthlyIncome);
-        document.getElementById("joint-final-expense").textContent = compactWon(jointFinalExpense);
-        document.getElementById("joint-final-balance").textContent = compactWon(jointBalance);
-        document.getElementById("joint-final-balance").className = `final-balance ${jointBalance >= 0 ? "ok" : "danger"}`;
-        document.getElementById("joint-final-monthly-total").textContent = compactWon(joint.monthlyPayment + cardMonthly);
+        document.getElementById("variable-cost-total").textContent = compactWon(variableCostTotal);
+        document.getElementById("credit-cost-total").textContent = compactWon(creditCostTotal);
+        document.getElementById("cash-cost-total").textContent = compactWon(cashCostTotal);
+        const mortgageMonthly = annuity(mortgage, common.mortgageRate, common.mortgageMonths);
+        const creditMonthly = annuity(creditAmount, common.creditRate, common.creditMonths);
+        const monthlyTotalExpense = mortgageMonthly + creditMonthly + cardMonthly + fixedExpenseTotal;
+        document.getElementById("card-monthly-summary").textContent = compactWon(cardMonthly);
+        document.getElementById("monthly-debt-summary").textContent = compactWon(monthlyTotalExpense);
 
         renderPlan("joint", joint);
-        renderLoanPaymentInfo(common, creditRequired);
+        document.getElementById("joint-credit-required").textContent = compactWon(creditRequired);
+        renderLoanPaymentInfo(common, creditAmount);
         renderBank("joint", joint.dsr);
-        const fundingTotal = cashAvailable + mortgage + creditRequired + cardTotal;
-        const useTotal = purchase + cardTotal;
+        const fundingTotal = cashAvailable + mortgage + creditAmount + additionalFundTotal;
+        const useTotal = purchase;
         const remaining = fundingTotal - useTotal;
         const ledgerValues = {
           "ledger-cash": cashAvailable,
           "ledger-mortgage": mortgage,
-          "ledger-credit": creditRequired,
-          "ledger-card-funding": cardTotal,
+          "ledger-credit": creditAmount,
           "ledger-purchase": purchase,
-          "ledger-card-use": cardTotal,
           "ledger-funding-total": fundingTotal,
           "ledger-use-total": useTotal,
           "ledger-remaining": remaining,
         };
         Object.entries(ledgerValues).forEach(([id, value]) => document.getElementById(id).textContent = compactWon(value));
-        document.getElementById("ledger-status").textContent = remaining >= 0 ? "잔금 가능" : "자금 부족";
+        document.getElementById("summary-funding-total").textContent = compactWon(fundingTotal);
+        document.getElementById("summary-use-total").textContent = compactWon(useTotal);
+        const summaryRemaining = document.getElementById("summary-remaining");
+        summaryRemaining.textContent = compactWon(remaining);
+        summaryRemaining.className = `funding-summary-value ${remaining >= 0 ? "ok" : "danger"}`;
+        const additionalFundRows = document.getElementById("ledger-additional-funds");
+        additionalFundRows.innerHTML = "";
+        additionalFunds.forEach(fund => {
+          const row = document.createElement("tr");
+          const label = document.createElement("td");
+          const amount = document.createElement("td");
+          const blankLeft = document.createElement("td");
+          const blankRight = document.createElement("td");
+          label.textContent = fund.label || "추가 조달 자금";
+          amount.textContent = compactWon(fund.amount);
+          row.append(label, amount, blankLeft, blankRight);
+          additionalFundRows.appendChild(row);
+        });
+        document.getElementById("ledger-status").textContent = remaining >= 0 ? "잔금 가능" : "추가 재원 필요";
+        document.getElementById("monthly-mortgage").textContent = compactWon(mortgageMonthly);
+        document.getElementById("monthly-credit").textContent = compactWon(creditMonthly);
+        document.getElementById("monthly-card").textContent = compactWon(cardMonthly);
+        document.getElementById("monthly-total-expense").textContent = compactWon(monthlyTotalExpense);
+        const fixedExpenseRows = document.getElementById("monthly-fixed-expenses");
+        fixedExpenseRows.innerHTML = "";
+        fixedExpenses.forEach(expense => {
+          const row = document.createElement("tr");
+          const label = document.createElement("td");
+          const amount = document.createElement("td");
+          label.textContent = expense.label || "월 고정비";
+          amount.textContent = compactWon(expense.amount);
+          row.append(label, amount);
+          fixedExpenseRows.appendChild(row);
+        });
 
         const cardResultBody = document.getElementById("card-results");
         cardResultBody.innerHTML = "";
         if (rows.length === 0) {
-          cardResultBody.innerHTML = `<tr><td colspan="4" class="mini">카드 할부 항목이 없습니다.</td></tr>`;
+          cardResultBody.innerHTML = `<tr><td colspan="5" class="mini">변동비 항목이 없습니다.</td></tr>`;
         } else {
           rows.forEach(row => {
             const tr = document.createElement("tr");
-            tr.innerHTML = `<td>${row.label || "-"}</td><td>${compactWon(row.amount)}</td><td>${row.months}개월</td><td><strong>${compactWon(row.monthly)}</strong></td>`;
+            const method = row.funding === "card" ? "카드 할부" : row.funding === "credit" ? "신용대출" : "현금";
+            tr.innerHTML = `<td>${row.label || "-"}</td><td>${compactWon(row.amount)}</td><td>${method}</td><td>${row.funding === "card" ? `${row.months}개월` : "-"}</td><td><strong>${row.funding === "card" ? compactWon(row.monthly) : "-"}</strong></td>`;
             cardResultBody.appendChild(tr);
           });
         }
@@ -624,9 +809,21 @@
         timer = setTimeout(calculate, 120);
       }
       document.getElementById("add-card").addEventListener("click", () => {
-        cards.push({ label:"새 카드결제", amount:0, months:12, rate:0 });
+        cards.push({ label:"새 변동비", amount:0, funding:"card", months:12, rate:0 });
         renderCardInputs();
         saveState();
+      });
+      document.getElementById("add-additional-fund").addEventListener("click", () => {
+        additionalFunds.push({ label:"부모님 차용", amount:0 });
+        renderAdditionalFundInputs();
+        saveState();
+        calculate();
+      });
+      document.getElementById("add-fixed-expense").addEventListener("click", () => {
+        fixedExpenses.push({ label:"새 월 고정비", amount:0 });
+        renderFixedExpenseInputs();
+        saveState();
+        calculate();
       });
       document.getElementById("share-button").addEventListener("click", copyShareLink);
       document.getElementById("reset-button").addEventListener("click", () => {
