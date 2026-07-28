@@ -440,6 +440,7 @@
       async function copyShareLink() {
         saveState();
         let shareUrl = "";
+        let shortLink = false;
         try {
           const response = await fetch("/api/financing-calculator/share", {
             method: "POST",
@@ -448,21 +449,19 @@
           });
           if (!response.ok) throw new Error("share save failed");
           const payload = await response.json();
-          shareUrl = `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(payload.id)}`;
-          await navigator.clipboard.writeText(shareUrl);
-          const status = document.getElementById("save-status");
-          if (status) status.textContent = "짧은 공유 링크 복사됨";
+          shareUrl = payload.url || `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(payload.id)}`;
+          shortLink = true;
         } catch {
           const url = new URL(window.location.href);
           url.searchParams.set("state", encodeShareState(readState()));
-          shareUrl = shareUrl || url.toString();
-          try {
-            await navigator.clipboard.writeText(shareUrl);
-            const status = document.getElementById("save-status");
-            if (status) status.textContent = "긴 공유 링크 복사됨";
-          } catch {
-            window.prompt("공유 링크를 복사해줘", shareUrl);
-          }
+          shareUrl = url.toString();
+        }
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          const status = document.getElementById("save-status");
+          if (status) status.textContent = shortLink ? "입력값 포함 공유 링크 복사됨" : "입력값 포함 긴 공유 링크 복사됨";
+        } catch {
+          window.prompt("아래 링크를 복사해 보내주세요. 현재 입력값이 포함되어 있습니다.", shareUrl);
         }
       }
       function readCommon() {
