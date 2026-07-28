@@ -141,10 +141,6 @@
               <div class="group-heading"><span class="group-step">2</span><h3>대출 상환 조건</h3><span>월 납입금 계산에만 사용</span></div>
               <div class="fields">
               <div class="field">
-                <label for="joint_credit_amount_krw">신용대출 실행 예정금액</label>
-                <div class="input-wrap"><input id="joint_credit_amount_krw" type="number" min="0" step="100"><span class="unit">만원</span></div>
-              </div>
-              <div class="field">
                 <label for="mortgage_rate_percent">주담대 실제금리</label>
                 <div class="input-wrap"><input id="mortgage_rate_percent" type="number" min="0" step="0.01"><span class="unit">%</span></div>
               </div>
@@ -152,15 +148,11 @@
                 <label for="mortgage_term_years">주담대 만기</label>
                 <div class="input-wrap"><input id="mortgage_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
               </div>
-              <div class="field">
-                <label for="credit_rate_percent">신용대출 금리</label>
-                <div class="input-wrap"><input id="credit_rate_percent" type="number" min="0" step="0.1"><span class="unit">%</span></div>
               </div>
-              <div class="field">
-                <label for="credit_term_years">신용대출 만기</label>
-                <div class="input-wrap"><input id="credit_term_years" type="number" min="1" step="1"><span class="unit">년</span></div>
-              </div>
-              </div>
+              <h3 class="section-title">추가 대출</h3>
+              <div class="mini">원리금균등 대출과 마이너스통장·만기일시상환 대출을 필요한 만큼 추가하세요. 만기일시상환은 매달 이자만 계산하고 만기 원금은 별도로 표시합니다.</div>
+              <div class="card-input-list" id="loan-inputs"></div>
+              <div class="row-actions"><button id="add-loan" type="button">대출 조건 추가</button></div>
             </section>
 
             <section class="input-group scenario-group">
@@ -173,7 +165,7 @@
             </div>
 
             <h3 class="section-title">변동비 항목과 조달 방식</h3>
-            <div class="mini"><strong>취등록세는 고정 비용</strong>입니다. 기본 금액을 유지하고, 이사비·인테리어 등만 상황에 맞게 조정하세요.</div>
+            <div class="mini"><strong>취등록세는 고정 비용</strong>입니다. 신용대출로 낼 금액만 입력하면 나머지는 카드 할부 또는 현금으로 자동 배분됩니다.</div>
             <div class="card-input-list" id="card-inputs"></div>
             <div class="row-actions">
               <button id="add-card" type="button">변동비 항목 추가</button>
@@ -206,9 +198,9 @@
                 <tbody>
                   <tr><td>보유 현금</td><td id="ledger-cash">-</td><td>매매가</td><td id="ledger-purchase">-</td></tr>
                   <tr><td>주담대</td><td id="ledger-mortgage">-</td><td></td><td></td></tr>
-                  <tr><td>신용대출 실행 예정금액</td><td id="ledger-credit">-</td><td></td><td></td></tr>
                   <tr><td>카드 할부 조달</td><td id="ledger-card">-</td><td></td><td></td></tr>
                 </tbody>
+                <tbody id="ledger-loans"></tbody>
                 <tbody id="ledger-additional-funds"></tbody>
                 <tbody id="ledger-variable-costs"></tbody>
                 <tbody>
@@ -224,9 +216,9 @@
                 <thead><tr><th>월 지출 항목</th><th>월 금액</th></tr></thead>
                 <tbody>
                   <tr><td>주담대 원리금</td><td id="monthly-mortgage">-</td></tr>
-                  <tr><td>신용대출 원리금</td><td id="monthly-credit">-</td></tr>
                   <tr><td>카드 할부 합계</td><td id="monthly-card">-</td></tr>
                 </tbody>
+                <tbody id="monthly-loans"></tbody>
                 <tbody id="monthly-fixed-expenses"></tbody>
                 <tbody>
                   <tr class="ledger-total"><td>월 총 지출</td><td id="monthly-total-expense">-</td></tr>
@@ -237,7 +229,7 @@
               <h3>월 납입 변화 시점</h3>
               <p class="ledger-note">현재·6개월 후·12개월 후를 비교하고, 카드 할부나 대출이 끝나 월 납입이 바뀌는 시점을 함께 보여줍니다.</p>
               <table>
-                <thead><tr><th>시점</th><th>월 총 지출</th><th>직전 대비</th><th>변경 이유</th></tr></thead>
+                <thead><tr><th>시점</th><th>월 총 지출</th><th>직전 대비</th><th>만기 원금</th><th>변경 이유</th></tr></thead>
                 <tbody id="monthly-change-points"></tbody>
               </table>
             </section>
@@ -251,17 +243,18 @@
         purchase: 1017000000,
         jointMortgage: 600000000,
         cashAvailable: 285000000,
-        jointCredit: 65000000,
         mortgageRate: 4.7,
         mortgageTerm: 30,
-        creditRate: 6.5,
-        creditTerm: 5,
+        loans: [
+          { label:"신용대출", amount:32500000, repayment:"amortizing", rate:6.5, term:5 },
+          { label:"마이너스통장", amount:32500000, repayment:"bullet", rate:5.5, term:1 },
+        ],
         cards: [
-          { label:"취등록세 (고정 · 3,156만원)", amount:31560000, funding:"card", months:12, rate:0 },
-          { label:"중개보수", amount:5593500, funding:"card", months:3, rate:0 },
-          { label:"법무비", amount:2000000, funding:"card", months:3, rate:0 },
-          { label:"이사비", amount:0, funding:"cash", months:1, rate:0 },
-          { label:"이사비 외 인테리어비", amount:20000000, funding:"credit", months:1, rate:0 },
+          { label:"취등록세 (고정 · 3,156만원)", amount:31560000, creditAmount:0, remainderFunding:"card", months:12, rate:0 },
+          { label:"중개보수", amount:5593500, creditAmount:0, remainderFunding:"card", months:3, rate:0 },
+          { label:"법무비", amount:2000000, creditAmount:0, remainderFunding:"card", months:3, rate:0 },
+          { label:"이사비", amount:0, creditAmount:0, remainderFunding:"cash", months:1, rate:0 },
+          { label:"이사비 외 인테리어비", amount:20000000, creditAmount:20000000, remainderFunding:"card", months:1, rate:0 },
         ],
         additionalFunds: [
           { label:"부모님 차용(충숙)", amount:50000000 },
@@ -276,14 +269,14 @@
       let cards = [];
       let additionalFunds = [];
       let fixedExpenses = [];
+      let loans = [];
 
       const amountIds = new Set([
-        "joint_purchase_price_krw","joint_mortgage_amount_krw","cash_available_krw","joint_credit_amount_krw"
+        "joint_purchase_price_krw","joint_mortgage_amount_krw","cash_available_krw"
       ]);
       const inputIds = [
         ...amountIds,
         "mortgage_rate_percent","mortgage_term_years",
-        "credit_rate_percent","credit_term_years",
       ];
 
       const compactWon = v => {
@@ -334,24 +327,23 @@
         setAmount("joint_purchase_price_krw", defaults.purchase);
         setAmount("joint_mortgage_amount_krw", defaults.jointMortgage);
         setAmount("cash_available_krw", defaults.cashAvailable);
-        setAmount("joint_credit_amount_krw", defaults.jointCredit);
         document.getElementById("mortgage_rate_percent").value = defaults.mortgageRate;
         document.getElementById("mortgage_term_years").value = defaults.mortgageTerm;
-        document.getElementById("credit_rate_percent").value = defaults.creditRate;
-        document.getElementById("credit_term_years").value = defaults.creditTerm;
         cards = defaults.cards.map(item => ({...item}));
         additionalFunds = defaults.additionalFunds.map(item => ({...item}));
         fixedExpenses = defaults.fixedExpenses.map(item => ({...item}));
+        loans = defaults.loans.map(item => ({...item}));
         renderCardInputs();
         renderAdditionalFundInputs();
         renderFixedExpenseInputs();
+        renderLoanInputs();
       }
       function readState() {
         const values = {};
         inputIds.forEach(id => {
           values[id] = document.getElementById(id)?.value ?? "";
         });
-        return { values, cards, additionalFunds, fixedExpenses };
+        return { values, cards, additionalFunds, fixedExpenses, loans };
       }
       function saveState() {
         localStorage.setItem(storageKey, JSON.stringify(readState()));
@@ -367,9 +359,21 @@
         cards = Array.isArray(state.cards) ? state.cards.map(item => ({...item})) : defaults.cards.map(item => ({...item}));
         additionalFunds = Array.isArray(state.additionalFunds) ? state.additionalFunds.map(item => ({...item})) : defaults.additionalFunds.map(item => ({...item}));
         fixedExpenses = Array.isArray(state.fixedExpenses) ? state.fixedExpenses.map(item => ({...item})) : defaults.fixedExpenses.map(item => ({...item}));
+        if (Array.isArray(state.loans)) {
+          loans = state.loans.map(item => ({...item}));
+        } else {
+          const legacyCredit = Number(state.values.joint_credit_amount_krw || 0);
+          const installmentAmount = Number(state.values.installment_credit_amount_krw || legacyCredit / 2) * 10000;
+          const creditLineAmount = Number(state.values.credit_line_amount_krw || legacyCredit / 2) * 10000;
+          loans = [
+            { label:"신용대출", amount:installmentAmount, repayment:"amortizing", rate:Number(state.values.credit_rate_percent || 6.5), term:Number(state.values.credit_term_years || 5) },
+            { label:"마이너스통장", amount:creditLineAmount, repayment:"bullet", rate:Number(state.values.credit_line_rate_percent || 5.5), term:1 },
+          ];
+        }
         renderCardInputs();
         renderAdditionalFundInputs();
         renderFixedExpenseInputs();
+        renderLoanInputs();
         const status = document.getElementById("save-status");
         if (status) status.textContent = "저장값 불러옴";
         return true;
@@ -460,8 +464,6 @@
           mortgageRate: getNumber("mortgage_rate_percent"),
           mortgageDsrRate: getNumber("mortgage_rate_percent"),
           mortgageMonths: getNumber("mortgage_term_years") * 12,
-          creditRate: getNumber("credit_rate_percent"),
-          creditMonths: getNumber("credit_term_years") * 12,
         };
       }
       function planDsr({income, mortgage, credit, dsrLimit}, common) {
@@ -478,6 +480,7 @@
         const tbody = document.getElementById("card-inputs");
         tbody.innerHTML = "";
         cards.forEach((card, index) => {
+          const allocation = splitVariableCost(card);
           const row = document.createElement("div");
           row.className = "card-input-row";
           row.innerHTML = `
@@ -491,18 +494,22 @@
                 <div class="input-wrap"><input data-card="${index}" data-field="amount" type="number" min="0" step="10" value="${Math.round(card.amount/10000)}"><span class="unit">만원</span></div>
               </div>
               <div>
-                <label>조달 방식</label>
-                <select data-card="${index}" data-field="funding">
-                  <option value="card"${(card.funding || "card") === "card" ? " selected" : ""}>카드 할부</option>
-                  <option value="credit"${card.funding === "credit" ? " selected" : ""}>신용대출</option>
-                  <option value="cash"${card.funding === "cash" ? " selected" : ""}>현금</option>
+                <label>신용대출로 낼 금액</label>
+                <div class="input-wrap"><input data-card="${index}" data-field="creditAmount" type="number" min="0" step="10" max="${Math.round(card.amount/10000)}" value="${Math.round(allocation.creditAmount/10000)}"><span class="unit">만원</span></div>
+              </div>
+              <div>
+                <label>나머지 조달 방식</label>
+                <select data-card="${index}" data-field="remainderFunding">
+                  <option value="card"${allocation.remainderFunding === "card" ? " selected" : ""}>카드 할부</option>
+                  <option value="cash"${allocation.remainderFunding === "cash" ? " selected" : ""}>현금</option>
                 </select>
               </div>
-              <div class="card-only" style="visibility:${(card.funding || "card") === "card" ? "visible" : "hidden"}">
+              <div class="mini"><strong>자동 배분:</strong> ${allocation.remainderFunding === "card" ? "카드 할부" : "필요 현금"} ${compactWon(allocation.remainderAmount)}</div>
+              <div class="card-only" style="visibility:${allocation.cardAmount > 0 ? "visible" : "hidden"}">
                 <label>할부개월</label>
                 <div class="input-wrap"><input data-card="${index}" data-field="months" type="number" min="1" step="1" value="${card.months}"><span class="unit">개월</span></div>
               </div>
-              <div class="card-only" style="visibility:${(card.funding || "card") === "card" ? "visible" : "hidden"}">
+              <div class="card-only" style="visibility:${allocation.cardAmount > 0 ? "visible" : "hidden"}">
                 <label>할부금리</label>
                 <div class="input-wrap"><input data-card="${index}" data-field="rate" type="number" min="0" step="0.1" value="${card.rate}"><span class="unit">%</span></div>
               </div>
@@ -515,10 +522,11 @@
           const index = Number(event.target.dataset.card);
           const field = event.target.dataset.field;
           if (field === "amount") cards[index][field] = Math.round(Number(event.target.value || 0) * 10000);
+          else if (field === "creditAmount") cards[index][field] = Math.max(0, Math.round(Number(event.target.value || 0) * 10000));
           else if (field === "months") cards[index][field] = Math.max(1, Number(event.target.value || 1));
           else if (field === "rate") cards[index][field] = Number(event.target.value || 0);
           else cards[index][field] = event.target.value;
-          if (field === "funding") renderCardInputs();
+          if (["amount", "creditAmount", "remainderFunding"].includes(field)) renderCardInputs();
           saveState();
           calculate();
         }));
@@ -530,14 +538,29 @@
         }));
         calculate();
       }
+      function splitVariableCost(card) {
+        const amount = Math.max(0, Number(card.amount || 0));
+        const legacyFunding = card.funding || "card";
+        const creditAmount = Math.min(amount, Math.max(0, Number(card.creditAmount ?? (legacyFunding === "credit" ? amount : 0))));
+        const remainderAmount = amount - creditAmount;
+        const remainderFunding = card.remainderFunding || (legacyFunding === "cash" ? "cash" : "card");
+        return {
+          creditAmount,
+          remainderAmount,
+          remainderFunding,
+          cardAmount: remainderFunding === "card" ? remainderAmount : 0,
+          cashAmount: remainderFunding === "cash" ? remainderAmount : 0,
+        };
+      }
       function cardRows() {
-        return cards.map(card => ({
-          ...card,
-          funding: card.funding || "card",
-          monthly: (card.funding || "card") === "card"
-            ? annuity(card.amount, card.rate, Math.max(1, card.months))
-            : 0,
-        }));
+        return cards.map(card => {
+          const allocation = splitVariableCost(card);
+          return {
+            ...card,
+            ...allocation,
+            monthly: annuity(allocation.cardAmount, card.rate, Math.max(1, card.months)),
+          };
+        });
       }
       function renderAdditionalFundInputs() {
         const container = document.getElementById("additional-fund-inputs");
@@ -613,6 +636,71 @@
           calculate();
         }));
       }
+      function renderLoanInputs() {
+        const container = document.getElementById("loan-inputs");
+        container.innerHTML = "";
+        loans.forEach((loan, index) => {
+          const row = document.createElement("div");
+          row.className = "card-input-row";
+          row.innerHTML = `
+            <div class="card-input-fields">
+              <div class="card-name">
+                <label>대출명</label>
+                <input data-loan="${index}" data-field="label" value="${loan.label}">
+              </div>
+              <div>
+                <label>대출 방식</label>
+                <select data-loan="${index}" data-field="repayment">
+                  <option value="amortizing"${loan.repayment === "amortizing" ? " selected" : ""}>원리금균등상환</option>
+                  <option value="bullet"${loan.repayment === "bullet" ? " selected" : ""}>만기일시상환 · 이자만</option>
+                </select>
+              </div>
+              <div>
+                <label>사용 예정액</label>
+                <div class="input-wrap"><input data-loan="${index}" data-field="amount" type="number" min="0" step="100" value="${Math.round(loan.amount / 10000)}"><span class="unit">만원</span></div>
+              </div>
+              <div>
+                <label>금리</label>
+                <div class="input-wrap"><input data-loan="${index}" data-field="rate" type="number" min="0" step="0.1" value="${loan.rate}"><span class="unit">%</span></div>
+              </div>
+              <div>
+                <label>만기</label>
+                <div class="input-wrap"><input data-loan="${index}" data-field="term" type="number" min="1" step="1" value="${loan.term}"><span class="unit">년</span></div>
+              </div>
+              <div class="mini">${loan.repayment === "bullet" ? `월 이자만 납부 · 만기 원금 ${compactWon(loan.amount)} 상환` : "원리금균등 월 납입"}</div>
+              <button class="remove-card" type="button" data-remove-loan="${index}">삭제</button>
+            </div>
+          `;
+          container.appendChild(row);
+        });
+        container.querySelectorAll("input, select").forEach(input => input.addEventListener("input", event => {
+          const index = Number(event.target.dataset.loan);
+          const field = event.target.dataset.field;
+          if (field === "amount") loans[index][field] = Math.max(0, Math.round(Number(event.target.value || 0) * 10000));
+          else if (field === "rate") loans[index][field] = Math.max(0, Number(event.target.value || 0));
+          else if (field === "term") loans[index][field] = Math.max(1, Number(event.target.value || 1));
+          else loans[index][field] = event.target.value;
+          if (field === "repayment") renderLoanInputs();
+          saveState();
+          calculate();
+        }));
+        container.querySelectorAll("[data-remove-loan]").forEach(button => button.addEventListener("click", event => {
+          loans.splice(Number(event.target.dataset.removeLoan), 1);
+          renderLoanInputs();
+          saveState();
+          calculate();
+        }));
+      }
+      function loanRows() {
+        return loans.map(loan => {
+          const months = Math.max(1, Number(loan.term || 1) * 12);
+          const repayment = loan.repayment || "amortizing";
+          const monthly = repayment === "bullet"
+            ? loan.amount * Number(loan.rate || 0) / 100 / 12
+            : annuity(loan.amount, Number(loan.rate || 0), months);
+          return { ...loan, repayment, months, monthly, maturityPrincipal: repayment === "bullet" ? loan.amount : 0 };
+        });
+      }
       function renderPlan(prefix, result) {
         document.getElementById(`${prefix}-income-result`).textContent = compactWon(result.income);
         document.getElementById(`${prefix}-dsr-row`).textContent = pct(result.dsr);
@@ -651,27 +739,25 @@
       function calculate() {
         const common = readCommon();
         const rows = cardRows();
+        const loanPlans = loanRows();
         const cardMonthly = rows.reduce((sum, row) => sum + row.monthly, 0);
         const variableCostTotal = rows.reduce((sum, row) => sum + row.amount, 0);
-        const cardTotal = rows.filter(row => row.funding === "card").reduce((sum, row) => sum + row.amount, 0);
-        const creditCostTotal = rows.filter(row => row.funding === "credit").reduce((sum, row) => sum + row.amount, 0);
-        const cashCostTotal = rows.filter(row => row.funding === "cash").reduce((sum, row) => sum + row.amount, 0);
+        const cardTotal = rows.reduce((sum, row) => sum + row.cardAmount, 0);
         const purchase = getAmount("joint_purchase_price_krw");
         const cashAvailable = getAmount("cash_available_krw");
         const mortgage = getAmount("joint_mortgage_amount_krw");
         const additionalFundTotal = additionalFunds.reduce((sum, fund) => sum + fund.amount, 0);
         const fixedExpenseTotal = fixedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-        const creditAmount = getAmount("joint_credit_amount_krw");
         const mortgageMonthly = annuity(mortgage, common.mortgageRate, common.mortgageMonths);
-        const creditMonthly = annuity(creditAmount, common.creditRate, common.creditMonths);
-        const monthlyTotalExpense = mortgageMonthly + creditMonthly + cardMonthly + fixedExpenseTotal;
-        const fundingTotal = cashAvailable + mortgage + creditAmount + additionalFundTotal + cardTotal;
+        const loanMonthly = loanPlans.reduce((sum, loan) => sum + loan.monthly, 0);
+        const loanTotal = loanPlans.reduce((sum, loan) => sum + loan.amount, 0);
+        const monthlyTotalExpense = mortgageMonthly + loanMonthly + cardMonthly + fixedExpenseTotal;
+        const fundingTotal = cashAvailable + mortgage + loanTotal + additionalFundTotal + cardTotal;
         const useTotal = purchase + variableCostTotal;
         const remaining = fundingTotal - useTotal;
         const ledgerValues = {
           "ledger-cash": cashAvailable,
           "ledger-mortgage": mortgage,
-          "ledger-credit": creditAmount,
           "ledger-card": cardTotal,
           "ledger-purchase": purchase,
           "ledger-funding-total": fundingTotal,
@@ -697,6 +783,19 @@
           row.append(label, amount, blankLeft, blankRight);
           additionalFundRows.appendChild(row);
         });
+        const loanLedgerRows = document.getElementById("ledger-loans");
+        loanLedgerRows.innerHTML = "";
+        loanPlans.forEach(loan => {
+          const row = document.createElement("tr");
+          const label = document.createElement("td");
+          const amount = document.createElement("td");
+          const blankLeft = document.createElement("td");
+          const blankRight = document.createElement("td");
+          label.textContent = loan.label || "추가 대출";
+          amount.textContent = compactWon(loan.amount);
+          row.append(label, amount, blankLeft, blankRight);
+          loanLedgerRows.appendChild(row);
+        });
         const variableCostRows = document.getElementById("ledger-variable-costs");
         variableCostRows.innerHTML = "";
         rows.forEach(cost => {
@@ -712,30 +811,44 @@
         });
         document.getElementById("ledger-status").textContent = remaining >= 0 ? "자금 여유" : "추가 자금 필요";
         document.getElementById("monthly-mortgage").textContent = compactWon(mortgageMonthly);
-        document.getElementById("monthly-credit").textContent = compactWon(creditMonthly);
         document.getElementById("monthly-card").textContent = compactWon(cardMonthly);
         document.getElementById("monthly-total-expense").textContent = compactWon(monthlyTotalExpense);
+        const monthlyLoanRows = document.getElementById("monthly-loans");
+        monthlyLoanRows.innerHTML = "";
+        loanPlans.forEach(loan => {
+          const row = document.createElement("tr");
+          const label = document.createElement("td");
+          const amount = document.createElement("td");
+          label.textContent = loan.repayment === "bullet" ? `${loan.label || "추가 대출"} 이자` : `${loan.label || "추가 대출"} 원리금`;
+          amount.textContent = compactWon(loan.monthly);
+          row.append(label, amount);
+          monthlyLoanRows.appendChild(row);
+        });
         const changePoints = new Set([0, 6, 12]);
-        rows.filter(row => row.funding === "card" && row.amount > 0).forEach(row => changePoints.add(row.months));
-        if (creditAmount > 0) changePoints.add(common.creditMonths);
+        rows.filter(row => row.cardAmount > 0).forEach(row => changePoints.add(row.months));
+        loanPlans.filter(loan => loan.amount > 0).forEach(loan => changePoints.add(loan.months));
         if (mortgage > 0) changePoints.add(common.mortgageMonths);
         const changePointBody = document.getElementById("monthly-change-points");
         changePointBody.innerHTML = "";
         let previousTotal = null;
         [...changePoints].sort((a, b) => a - b).forEach(offset => {
           const mortgageAtPoint = offset < common.mortgageMonths ? mortgageMonthly : 0;
-          const creditAtPoint = offset < common.creditMonths ? creditMonthly : 0;
-          const cardAtPoint = rows.reduce((sum, row) => sum + (row.funding === "card" && offset < row.months ? row.monthly : 0), 0);
-          const totalAtPoint = mortgageAtPoint + creditAtPoint + cardAtPoint + fixedExpenseTotal;
+          const loansAtPoint = loanPlans.reduce((sum, loan) => sum + (offset < loan.months ? loan.monthly : 0), 0);
+          const cardAtPoint = rows.reduce((sum, row) => sum + (row.cardAmount > 0 && offset < row.months ? row.monthly : 0), 0);
+          const totalAtPoint = mortgageAtPoint + loansAtPoint + cardAtPoint + fixedExpenseTotal;
           const reasons = [];
-          rows.filter(row => row.funding === "card" && row.amount > 0 && row.months === offset)
+          const maturityPrincipal = loanPlans.filter(loan => loan.maturityPrincipal > 0 && loan.months === offset)
+            .reduce((sum, loan) => sum + loan.maturityPrincipal, 0);
+          rows.filter(row => row.cardAmount > 0 && row.months === offset)
             .forEach(row => reasons.push(`${row.label || "카드"} 할부 종료`));
-          if (creditAmount > 0 && offset === common.creditMonths) reasons.push("신용대출 상환 종료");
+          loanPlans.filter(loan => loan.amount > 0 && loan.months === offset).forEach(loan => {
+            reasons.push(loan.repayment === "bullet" ? `${loan.label || "대출"} 만기` : `${loan.label || "대출"} 상환 종료`);
+          });
           if (mortgage > 0 && offset === common.mortgageMonths) reasons.push("주담대 상환 종료");
           const row = document.createElement("tr");
           const pointLabel = offset === 0 ? "현재" : `${offset}개월 후`;
           const difference = previousTotal === null ? "-" : compactWon(totalAtPoint - previousTotal);
-          row.innerHTML = `<td>${pointLabel}</td><td><strong>${compactWon(totalAtPoint)}</strong></td><td class="${previousTotal !== null && totalAtPoint < previousTotal ? "ok" : previousTotal !== null && totalAtPoint > previousTotal ? "danger" : ""}">${difference}</td><td>${reasons.join(" · ") || `${pointLabel} 기준`}</td>`;
+          row.innerHTML = `<td>${pointLabel}</td><td><strong>${compactWon(totalAtPoint)}</strong></td><td class="${previousTotal !== null && totalAtPoint < previousTotal ? "ok" : previousTotal !== null && totalAtPoint > previousTotal ? "danger" : ""}">${difference}</td><td class="${maturityPrincipal > 0 ? "danger" : ""}">${maturityPrincipal > 0 ? compactWon(maturityPrincipal) : "-"}</td><td>${reasons.join(" · ") || `${pointLabel} 기준`}</td>`;
           changePointBody.appendChild(row);
           previousTotal = totalAtPoint;
         });
@@ -758,7 +871,7 @@
         timer = setTimeout(calculate, 120);
       }
       document.getElementById("add-card").addEventListener("click", () => {
-        cards.push({ label:"새 변동비", amount:0, funding:"card", months:12, rate:0 });
+        cards.push({ label:"새 변동비", amount:0, creditAmount:0, remainderFunding:"card", months:12, rate:0 });
         renderCardInputs();
         saveState();
       });
@@ -771,6 +884,12 @@
       document.getElementById("add-fixed-expense").addEventListener("click", () => {
         fixedExpenses.push({ label:"새 월 고정비", amount:0 });
         renderFixedExpenseInputs();
+        saveState();
+        calculate();
+      });
+      document.getElementById("add-loan").addEventListener("click", () => {
+        loans.push({ label:"새 대출", amount:0, repayment:"amortizing", rate:6.5, term:5 });
+        renderLoanInputs();
         saveState();
         calculate();
       });
