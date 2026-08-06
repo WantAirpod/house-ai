@@ -117,6 +117,7 @@
         </div>
         <div class="header-actions">
           <span class="save-status" id="save-status">자동 저장 대기</span>
+          <button id="excel-copy-button" type="button">서식 포함 엑셀 복사</button>
           <button id="share-button" type="button">공유 링크 복사</button>
           <button id="reset-button" type="button">기본값 복원</button>
         </div>
@@ -289,6 +290,8 @@
       let additionalFunds = [];
       let fixedExpenses = [];
       let loans = [];
+      let latestExcelText = "";
+      let latestExcelHtml = "";
 
       const amountIds = new Set([
         "joint_purchase_price_krw","joint_mortgage_amount_krw","cash_available_krw"
@@ -790,6 +793,85 @@
           return { ...loan, repayment, months, monthly, maturityPrincipal: repayment === "bullet" ? loan.amount : 0 };
         });
       }
+      function tsvCell(value) {
+        return String(value ?? "").replace(/[\t\n\r]/g, " ");
+      }
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+      }
+      function buildStyledExcelHtml(tsv) {
+        const sectionColors = ["#176b48", "#315b7d", "#8a5a12", "#69537e"];
+        return tsv.split("\n\n").map((section, index) => {
+          const rows = section.split("\n").filter(Boolean).map(line => line.split("\t"));
+          const title = rows.shift()?.[0] || "";
+          const header = rows.shift() || [];
+          const width = Math.max(1, header.length);
+          const amountColumns = header.map((cell, index) => /금액|플러스|마이너스/.test(cell) ? index : -1).filter(index => index >= 0);
+          const body = rows.map((cells, rowIndex) => {
+            const isTotal = cells.some(cell => String(cell).includes("합계") || String(cell).includes("최종 남은 돈"));
+            return `<tr style="background:${isTotal ? "#e8f2ec" : rowIndex % 2 ? "#f8faf8" : "#ffffff"};font-weight:${isTotal ? "700" : "400"};">${cells.map((cell, colIndex) => `<td style="border:1px solid #d8ddd8;padding:8px 10px;color:#17201b;text-align:${amountColumns.includes(colIndex) ? "right" : "left"};white-space:nowrap;">${escapeHtml(cell)}</td>`).join("")}</tr>`;
+          }).join("");
+          return `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:10.5pt;margin:0 0 18px 0;min-width:620px;"><tr><th colspan="${width}" style="background:${sectionColors[index % sectionColors.length]};color:#ffffff;text-align:left;padding:10px 12px;font-size:12pt;">${escapeHtml(title)}</th></tr><tr>${header.map(cell => `<th style="background:#edf1ed;color:#44504a;border:1px solid #d8ddd8;padding:7px 10px;text-align:left;font-weight:700;">${escapeHtml(cell)}</th>`).join("")}</tr>${body}</table>`;
+        }).join("");
+      }
+      function buildExcelText({ fundingTotal, useTotal, remaining, cashAvailable, mortgage, loanPlans, additionalFundTotal, cardTotal, purchase, rows, mortgageMonthly, cardMonthly, fixedExpenseTotal, loanMonthly, monthlyTotalExpense, common, changeRows }) {
+        const output = [];
+        const add = (...cells) => output.push(cells.map(tsvCell).join("\t"));
+        add("자금 요약");
+        add("구분", "항목", "금액", "비고");
+        add("요약", "총 플러스", compactWon(fundingTotal), "확보 자금 합계");
+        add("요약", "총 마이너스", compactWon(useTotal), "매매가·변동비 합계");
+        add("요약", "최종 남은 돈", compactWon(remaining), "플러스 − 마이너스");
+        add("요약", "자금 상태", remaining >= 0 ? "자금 여유" : "추가 자금 필요", "");
+        add("");
+        add("자금 상세");
+        add("차변 (+) · 조달 자금", "금액", "대변 (-) · 사용처", "금액");
+        const fundingRows = [
+          ["보유 현금", cashAvailable], ["주담대", mortgage],
+          ...loanPlans.map(loan => [loan.label || "추가 대출", loan.amount]),
+          ...additionalFunds.map(fund => [fund.label || "추가 조달 자금", fund.amount]),
+          ["카드 할부 조달", cardTotal],
+        ];
+        const useRows = [["매매가", purchase], ...rows.map(cost => [cost.label || "변동비", cost.amount])];
+        const ledgerRowCount = Math.max(fundingRows.length, useRows.length);
+        for (let index = 0; index < ledgerRowCount; index += 1) {
+          const funding = fundingRows[index] || ["", ""];
+          const use = useRows[index] || ["", ""];
+          add(funding[0], funding[1] === "" ? "" : compactWon(funding[1]), use[0], use[1] === "" ? "" : compactWon(use[1]));
+        }
+        add("플러스 합계", compactWon(fundingTotal), "마이너스 합계", compactWon(useTotal));
+        add("최종 남은 돈", compactWon(remaining), "자금 상태", remaining >= 0 ? "자금 여유" : "추가 자금 필요");
+        add("");
+        add("월 납입 계획");
+        add("구분", "항목", "월 납입액", "상환 방식 / 비고");
+        add("월 지출", mortgagePaymentLabel(common), compactWon(mortgageMonthly), common.mortgageGraceMonths ? "첫 1년 거치" : "");
+        loanPlans.forEach(loan => add("월 지출", loan.label || "추가 대출", compactWon(loan.monthly), loan.repayment === "bullet" ? "이자만 납부 · 만기 원금 별도" : "원리금균등"));
+        add("월 지출", "카드 할부 합계", compactWon(cardMonthly), "");
+        fixedExpenses.forEach(expense => add("월 지출", expense.label || "월 고정비", compactWon(expense.amount), ""));
+        add("합계", "월 총 지출", compactWon(monthlyTotalExpense), "");
+        add("");
+        add("월 납입 변화 시점");
+        add("시점", "월 총 지출", "직전 대비", "만기 원금", "변경 이유");
+        changeRows.forEach(row => add(row.label, compactWon(row.total), row.difference === "" ? "-" : compactWon(row.difference), row.maturityPrincipal ? compactWon(row.maturityPrincipal) : "-", row.reason));
+        const text = output.join("\n");
+        return { text, html: buildStyledExcelHtml(text) };
+      }
+      async function copyExcelResult() {
+        if (!latestExcelText) return;
+        try {
+          if (window.ClipboardItem && navigator.clipboard?.write) {
+            await navigator.clipboard.write([new ClipboardItem({
+              "text/plain": new Blob([latestExcelText], { type:"text/plain" }),
+              "text/html": new Blob([latestExcelHtml], { type:"text/html" }),
+            })]);
+          } else {
+            await navigator.clipboard.writeText(latestExcelText);
+          }
+          document.getElementById("save-status").textContent = "엑셀용 결과 복사됨";
+        } catch {
+          window.prompt("아래 내용을 엑셀에 붙여넣어 주세요.", latestExcelText);
+        }
+      }
       function renderPlan(prefix, result) {
         document.getElementById(`${prefix}-income-result`).textContent = compactWon(result.income);
         document.getElementById(`${prefix}-dsr-row`).textContent = pct(result.dsr);
@@ -922,6 +1004,7 @@
         const changePointBody = document.getElementById("monthly-change-points");
         changePointBody.innerHTML = "";
         let previousTotal = null;
+        const changeRows = [];
         [...changePoints].sort((a, b) => a - b).forEach(offset => {
           const mortgageAtPoint = mortgagePaymentAtMonth(mortgage, common, offset);
           const loansAtPoint = loanPlans.reduce((sum, loan) => sum + (offset < loan.months ? loan.monthly : 0), 0);
@@ -939,9 +1022,11 @@
           if (mortgage > 0 && common.mortgageGraceMonths && offset === common.mortgageGraceMonths) reasons.push("주담대 1년 거치 종료 · 원금 상환 시작");
           const row = document.createElement("tr");
           const pointLabel = offset === 0 ? "현재" : `${offset}개월 후`;
-          const difference = previousTotal === null ? "-" : compactWon(totalAtPoint - previousTotal);
+          const differenceAmount = previousTotal === null ? null : totalAtPoint - previousTotal;
+          const difference = differenceAmount === null ? "-" : compactWon(differenceAmount);
           row.innerHTML = `<td>${pointLabel}</td><td><strong>${compactWon(totalAtPoint)}</strong></td><td class="${previousTotal !== null && totalAtPoint < previousTotal ? "ok" : previousTotal !== null && totalAtPoint > previousTotal ? "danger" : ""}">${difference}</td><td class="${maturityPrincipal > 0 ? "danger" : ""}">${maturityPrincipal > 0 ? compactWon(maturityPrincipal) : "-"}</td><td>${reasons.join(" · ") || `${pointLabel} 기준`}</td>`;
           changePointBody.appendChild(row);
+          changeRows.push({ label:pointLabel, total:totalAtPoint, difference:differenceAmount ?? "", maturityPrincipal, reason:reasons.join(" · ") || `${pointLabel} 기준` });
           previousTotal = totalAtPoint;
         });
         const fixedExpenseRows = document.getElementById("monthly-fixed-expenses");
@@ -955,6 +1040,13 @@
           row.append(label, amount);
           fixedExpenseRows.appendChild(row);
         });
+        const excelPayload = buildExcelText({
+          fundingTotal, useTotal, remaining, cashAvailable, mortgage, loanPlans, additionalFundTotal,
+          cardTotal, purchase, rows, mortgageMonthly, cardMonthly, fixedExpenseTotal, loanMonthly,
+          monthlyTotalExpense, common, changeRows,
+        });
+        latestExcelText = excelPayload.text;
+        latestExcelHtml = excelPayload.html;
 
       }
       let timer = null;
@@ -986,6 +1078,7 @@
         calculate();
       });
       document.getElementById("share-button").addEventListener("click", copyShareLink);
+      document.getElementById("excel-copy-button").addEventListener("click", copyExcelResult);
       document.getElementById("reset-button").addEventListener("click", () => {
         localStorage.removeItem(storageKey);
         window.history.replaceState(null, "", window.location.pathname);
